@@ -1,2052 +1,347 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Angry Birds - Dynamic Ground & Metal Edition</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Matter.js Physics Engine -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: manipulation;
-        }
-        canvas {
-            display: block;
-            touch-action: none;
-        }
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.2);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 3px;
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Марс: заброшенные станции (Angry Birds Edition)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root{--bg:#050b07;--card:#0b1710;--tx:#c9f5d6;--mu:#6fa381;--ac:#2fe06a;--ok:#2fe06a;--bad:#ff5a5a;--bd:#17402a;--bt:#10241a;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#050b07;--card:#0b1710;--tx:#c9f5d6;--mu:#6fa381;--ac:#2fe06a;--ok:#2fe06a;--bad:#ff5a5a;--bd:#17402a;--bt:#10241a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#050b07;--card:#0b1710;--tx:#c9f5d6;--mu:#6fa381;--ac:#2fe06a;--ok:#2fe06a;--bad:#ff5a5a;--bd:#17402a;--bt:#10241a;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 ui-monospace,"SF Mono",Menlo,Consolas,monospace;overflow-x:hidden}
+#app{max-width:520px;margin:0 auto;padding:10px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px;margin-bottom:10px}
+h3{margin:0 0 6px;font-size:14px;color:var(--mu);text-transform:uppercase;letter-spacing:.05em}
+.st{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center}
+.st b{display:block;font-size:18px}.st span{font-size:11px;color:var(--mu)}
+button{font:inherit;color:var(--tx);background:var(--bt);border:1px solid var(--bd);border-radius:10px;padding:9px 10px;margin:3px 3px 3px 0;cursor:pointer}
+button:disabled{opacity:.4}button.p{background:var(--ac);color:#03140a;border-color:var(--ac)}button.sel{outline:2px solid var(--ac)}
+.log{font-size:13px;color:var(--mu)}.log div:last-child{color:var(--tx)}
+.bad{color:var(--bad)}.ok{color:var(--ok)}.mu{color:var(--mu);font-size:13px}
+canvas{display:block;touch-action:none;margin:0 auto;background:#030805;border-radius:10px;border:1px solid var(--bd)}
+</style>
 </head>
-<body class="bg-slate-950 text-white min-h-screen flex flex-col justify-between overflow-hidden">
-
-    <!-- TOP BAR / HEADER -->
-    <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-700/80 px-4 py-2.5 flex justify-between items-center z-10 shadow-lg">
-        <div class="flex items-center space-x-3">
-            <div class="bg-gradient-to-tr from-red-600 via-amber-500 to-yellow-400 text-white p-2 rounded-xl shadow-lg flex items-center justify-center font-black text-xl w-10 h-10">
-                <i class="fa-solid fa-shield-halved animate-pulse"></i>
-            </div>
-            <div>
-                <h1 class="text-lg md:text-xl font-black tracking-wide bg-gradient-to-r from-red-400 via-amber-300 to-yellow-400 bg-clip-text text-transparent">
-                    DEFORMABLE GROUND EDITION
-                </h1>
-                <p class="text-[10px] md:text-xs text-slate-400">Metal Blocks • Indestructible Balloons • Live Orbit</p>
-            </div>
-        </div>
-
-        <!-- GAME STATS & CONTROLS -->
-        <div class="flex items-center space-x-2 md:space-x-5">
-            <div class="text-center">
-                <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Level</span>
-                <select id="level-select" class="bg-slate-800 text-amber-400 font-black text-xs md:text-sm rounded-lg px-2 py-1 border border-slate-600 focus:outline-none">
-                    <option value="1">Lvl 1 - Outpost</option>
-                    <option value="2">Lvl 2 - Steel Citadel</option>
-                    <option value="3">Lvl 3 - Bunker</option>
-                    <option value="4">Lvl 4 - Sky Fortress</option>
-                    <option value="5">Lvl 5 - Mega Bastion</option>
-                    <option value="6">Lvl 6 - Titanium Fortress</option>
-                    <option value="7">Lvl 7 - 👑 BOSS BATTLE</option>
-                </select>
-            </div>
-            <div class="text-center">
-                <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Score</span>
-                <span id="score-display" class="text-lg md:text-xl font-black text-emerald-400">0</span>
-            </div>
-            <div class="text-center hidden sm:block">
-                <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Ammo</span>
-                <div id="shots-container" class="flex space-x-1 justify-center mt-0.5">
-                    <!-- Bird queue -->
-                </div>
-            </div>
-            
-            <div class="flex space-x-1.5">
-                <button id="btn-sound" class="w-9 h-9 bg-slate-800 hover:bg-slate-700 rounded-lg flex items-center justify-center text-slate-200 transition border border-slate-700">
-                    <i id="sound-icon" class="fa-solid fa-volume-high"></i>
-                </button>
-                <button id="btn-reset" class="w-9 h-9 bg-amber-600 hover:bg-amber-500 rounded-lg flex items-center justify-center text-white transition shadow-md" title="Reset Level">
-                    <i class="fa-solid fa-rotate-right"></i>
-                </button>
-                <button id="btn-customize" class="px-2.5 h-9 bg-indigo-600 hover:bg-indigo-500 rounded-lg flex items-center justify-center text-white font-bold text-xs transition shadow-md space-x-1.5 border border-indigo-400/30">
-                    <i class="fa-solid fa-paint-brush"></i>
-                    <span class="hidden md:inline">Customizer</span>
-                </button>
-            </div>
-        </div>
-    </header>
-
-    <!-- MAIN GAME CANVAS CONTAINER -->
-    <main class="relative flex-1 overflow-hidden flex items-center justify-center">
-        <!-- Canvas Element -->
-        <canvas id="game-canvas"></canvas>
-
-        <!-- ACTIVE BIRD ABILITY OVERLAY PROMPT -->
-        <div id="ability-prompt" class="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/85 backdrop-blur-md text-amber-300 border border-amber-500/40 px-4 py-2 rounded-full text-xs md:text-sm font-bold shadow-lg pointer-events-none transition-all duration-300 opacity-0 transform -translate-y-2 flex items-center space-x-2">
-            <i class="fa-solid fa-bolt text-amber-400 animate-pulse"></i>
-            <span id="ability-text">Click screen mid-flight to trigger Ability!</span>
-        </div>
-
-        <!-- DAY / NIGHT TIMER BADGE -->
-        <div id="time-badge" class="absolute top-4 left-4 bg-slate-900/80 backdrop-blur-md border border-slate-700 text-amber-300 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-2 shadow-lg pointer-events-none">
-            <i id="time-badge-icon" class="fa-solid fa-sun text-amber-400"></i>
-            <span id="time-badge-text">Daytime</span>
-        </div>
-
-        <!-- GAME OVER / VICTORY OVERLAY MODAL -->
-        <div id="status-modal" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-20 hidden p-4">
-            <div class="bg-slate-800 border border-slate-700 p-6 md:p-8 rounded-2xl max-w-md w-full text-center shadow-2xl">
-                <div id="modal-icon" class="text-6xl mb-3 text-amber-400">
-                    <i class="fa-solid fa-trophy"></i>
-                </div>
-                <h2 id="modal-title" class="text-3xl font-black text-white mb-1">LEVEL CLEAR!</h2>
-                <p id="modal-subtitle" class="text-slate-400 text-sm mb-4">You destroyed all targets!</p>
-                
-                <!-- Star Rating Display -->
-                <div id="star-rating" class="flex justify-center space-x-2 text-3xl mb-6 text-amber-400">
-                    <i class="fa-solid fa-star"></i>
-                    <i class="fa-solid fa-star"></i>
-                    <i class="fa-solid fa-star"></i>
-                </div>
-
-                <div class="bg-slate-900/60 rounded-xl p-4 mb-6 text-left space-y-2 border border-slate-700/50">
-                    <div class="flex justify-between text-sm">
-                        <span class="text-slate-400">Destruction Score:</span>
-                        <span id="modal-destr-score" class="font-bold text-white">0</span>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-slate-400">Unused Birds Bonus:</span>
-                        <span id="modal-bonus-score" class="font-bold text-emerald-400">+0</span>
-                    </div>
-                    <hr class="border-slate-700 my-1">
-                    <div class="flex justify-between text-base font-bold">
-                        <span class="text-slate-200">Total Score:</span>
-                        <span id="modal-total-score" class="text-amber-400">0</span>
-                    </div>
-                </div>
-
-                <div class="flex space-x-3">
-                    <button id="modal-btn-retry" class="flex-1 py-3 bg-slate-700 hover:bg-slate-600 font-bold rounded-xl text-white transition">
-                        <i class="fa-solid fa-rotate-right me-1"></i> Retry
-                    </button>
-                    <button id="modal-btn-next" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl text-white transition shadow-lg">
-                        Next Level <i class="fa-solid fa-arrow-right ms-1"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- CUSTOMIZATION DRAWER/MODAL -->
-        <div id="custom-modal" class="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-30 hidden p-4">
-            <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-                <!-- Modal Header -->
-                <div class="p-4 bg-slate-800/90 border-b border-slate-700 flex justify-between items-center">
-                    <h3 class="text-lg font-bold text-white flex items-center">
-                        <i class="fa-solid fa-paint-brush text-indigo-400 me-2"></i> Customize Avatars, PIGS & Sun/Moon
-                    </h3>
-                    <button id="custom-close" class="text-slate-400 hover:text-white p-2 text-xl">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-
-                <!-- Modal Body -->
-                <div class="p-6 overflow-y-auto space-y-6">
-                    <!-- CELESTIAL CUSTOMIZATION (SUN & MOON) -->
-                    <div class="bg-slate-900/60 p-4 rounded-xl border border-amber-500/30">
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-amber-400 mb-3 flex items-center">
-                            <i class="fa-solid fa-sun me-1.5"></i> Celestial Bodies (Sun & Moon with Ray Effects)
-                        </h4>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <!-- Sun -->
-                            <div class="flex items-center justify-between bg-slate-800 p-3 rounded-lg border border-slate-700">
-                                <div class="flex items-center space-x-3">
-                                    <img id="sun-preview" class="w-10 h-10 rounded-full object-contain bg-amber-500/20 border border-amber-400 p-1">
-                                    <div>
-                                        <span class="text-xs font-bold text-white block">Sun (Day)</span>
-                                        <span class="text-[10px] text-slate-400">Golden rays tint</span>
-                                    </div>
-                                </div>
-                                <input type="file" id="sun-file-input" accept="image/*" class="hidden">
-                                <button onclick="document.getElementById('sun-file-input').click()" class="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg transition">
-                                    Upload
-                                </button>
-                            </div>
-                            <!-- Moon -->
-                            <div class="flex items-center justify-between bg-slate-800 p-3 rounded-lg border border-slate-700">
-                                <div class="flex items-center space-x-3">
-                                    <img id="moon-preview" class="w-10 h-10 rounded-full object-contain bg-sky-500/20 border border-sky-400 p-1">
-                                    <div>
-                                        <span class="text-xs font-bold text-white block">Moon (Night)</span>
-                                        <span class="text-[10px] text-slate-400">Cyan halo tint</span>
-                                    </div>
-                                </div>
-                                <input type="file" id="moon-file-input" accept="image/*" class="hidden">
-                                <button onclick="document.getElementById('moon-file-input').click()" class="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-lg transition">
-                                    Upload
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- BIRD TYPES LIST -->
-                    <div>
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Bird Projectiles</h4>
-                        <div id="bird-custom-list" class="space-y-3">
-                            <!-- Dynamic bird type rows -->
-                        </div>
-                    </div>
-
-                    <!-- PIG VARIATION CUSTOMIZATION -->
-                    <div>
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-3">Pig Targets & Boss</h4>
-                        <div id="pig-custom-list" class="space-y-3">
-                            <!-- Dynamic pig type rows -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Modal Footer -->
-                <div class="p-4 bg-slate-800/90 border-t border-slate-700 text-right">
-                    <button id="custom-apply" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 font-bold rounded-xl text-white text-sm transition">
-                        Save & Play
-                    </button>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <!-- FOOTER INSTRUCTIONS -->
-    <footer class="bg-slate-900 border-t border-slate-800 text-slate-400 text-xs p-2 text-center flex justify-between px-4 z-10">
-        <span><i class="fa-solid fa-hand-pointer me-1 text-amber-400"></i> Pull bird back & release. Click mid-flight for abilities! Dents ground!</span>
-        <span class="hidden sm:inline">Matter.js Physics & Dynamic Terrain Engine</span>
-    </footer>
-
-    <!-- GAME LOGIC SCRIPT -->
-    <script>
-        // ====================================================================
-        // SYNTHESIZED SOUND EFFECTS (Web Audio API)
-        // ====================================================================
-        class SoundFX {
-            constructor() {
-                this.ctx = null;
-                this.muted = false;
-            }
-
-            init() {
-                if (!this.ctx) {
-                    const AudioContext = window.AudioContext || window.webkitAudioContext;
-                    this.ctx = new AudioContext();
-                }
-            }
-
-            playStretch() {
-                if (this.muted) return;
-                this.init();
-                const now = this.ctx.currentTime;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(110, now);
-                osc.frequency.linearRampToValueAtTime(190, now + 0.05);
-
-                gain.gain.setValueAtTime(0.06, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start(now);
-                osc.stop(now + 0.05);
-            }
-
-            playLaunch() {
-                if (this.muted) return;
-                this.init();
-                const now = this.ctx.currentTime;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(160, now);
-                osc.frequency.exponentialRampToValueAtTime(520, now + 0.16);
-
-                gain.gain.setValueAtTime(0.25, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
-
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start(now);
-                osc.stop(now + 0.16);
-            }
-
-            playAbility(type) {
-                if (this.muted) return;
-                this.init();
-                const now = this.ctx.currentTime;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-
-                if (type === 'chuck') {
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(280, now);
-                    osc.frequency.exponentialRampToValueAtTime(1100, now + 0.15);
-                    gain.gain.setValueAtTime(0.25, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-                } else if (type === 'bomb') {
-                    this.playExplosion();
-                    return;
-                } else {
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(250, now);
-                    osc.frequency.linearRampToValueAtTime(600, now + 0.1);
-                    gain.gain.setValueAtTime(0.2, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                }
-
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start(now);
-                osc.stop(now + 0.15);
-            }
-
-            playExplosion() {
-                if (this.muted) return;
-                this.init();
-                const now = this.ctx.currentTime;
-                const bufferSize = this.ctx.sampleRate * 0.35;
-                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-                const output = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.2));
-                }
-
-                const noise = this.ctx.createBufferSource();
-                noise.buffer = buffer;
-
-                const filter = this.ctx.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(130, now);
-                filter.frequency.linearRampToValueAtTime(35, now + 0.3);
-
-                const gain = this.ctx.createGain();
-                gain.gain.setValueAtTime(0.55, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
-
-                noise.connect(filter);
-                filter.connect(gain);
-                gain.connect(this.ctx.destination);
-
-                noise.start(now);
-                noise.stop(now + 0.35);
-            }
-
-            playImpact(type = 'wood', intensity = 1) {
-                if (this.muted) return;
-                this.init();
-                const now = this.ctx.currentTime;
-
-                if (type === 'metal') {
-                    // Metallic Heavy Clang Sound Effect
-                    const osc = this.ctx.createOscillator();
-                    const gain = this.ctx.createGain();
-                    osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(380, now);
-                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.2);
-
-                    const vol = Math.min(Math.max(intensity / 12, 0.08), 0.5);
-                    gain.gain.setValueAtTime(vol, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-
-                    osc.connect(gain);
-                    gain.connect(this.ctx.destination);
-                    osc.start(now);
-                    osc.stop(now + 0.22);
-                    return;
-                }
-
-                const bufferSize = this.ctx.sampleRate * 0.08;
-                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-                const output = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    output[i] = Math.random() * 2 - 1;
-                }
-
-                const noise = this.ctx.createBufferSource();
-                noise.buffer = buffer;
-
-                const filter = this.ctx.createBiquadFilter();
-                filter.type = type === 'stone' ? 'lowpass' : (type === 'glass' ? 'highpass' : 'bandpass');
-                filter.frequency.value = type === 'stone' ? 240 : (type === 'glass' ? 2200 : 650);
-
-                const gain = this.ctx.createGain();
-                const volume = Math.min(Math.max(intensity / 14, 0.04), 0.4);
-                gain.gain.setValueAtTime(volume, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
-
-                noise.connect(filter);
-                filter.connect(gain);
-                gain.connect(this.ctx.destination);
-
-                noise.start(now);
-                noise.stop(now + 0.08);
-            }
-
-            playPigSqueal(isBoss = false) {
-                if (this.muted) return;
-                this.init();
-                const now = this.ctx.currentTime;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-
-                osc.type = 'triangle';
-                const baseFreq = isBoss ? 220 : 450;
-                osc.frequency.setValueAtTime(baseFreq, now);
-                osc.frequency.linearRampToValueAtTime(baseFreq + 250, now + 0.08);
-                osc.frequency.linearRampToValueAtTime(baseFreq - 100, now + 0.18);
-
-                gain.gain.setValueAtTime(isBoss ? 0.45 : 0.3, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
-
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start(now);
-                osc.stop(now + 0.18);
-            }
-
-            playVictory() {
-                if (this.muted) return;
-                this.init();
-                const notes = [261.63, 329.63, 392.00, 523.25];
-                notes.forEach((freq, idx) => {
-                    const now = this.ctx.currentTime + idx * 0.1;
-                    const osc = this.ctx.createOscillator();
-                    const gain = this.ctx.createGain();
-
-                    osc.type = 'sine';
-                    osc.frequency.value = freq;
-
-                    gain.gain.setValueAtTime(0.2, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-
-                    osc.connect(gain);
-                    gain.connect(this.ctx.destination);
-                    osc.start(now);
-                    osc.stop(now + 0.25);
-                });
-            }
-        }
-
-        const sound = new SoundFX();
-
-        // ====================================================================
-        // EMOJI & SVG AVATAR GENERATORS
-        // ====================================================================
-        function createEmojiAvatar(emoji, bgColor = '#ef4444', size = 128) {
-            const canvas = document.createElement('canvas');
-            canvas.width = size;
-            canvas.height = size;
-            const ctx = canvas.getContext('2d');
-
-            ctx.fillStyle = bgColor;
-            ctx.beginPath();
-            ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-            ctx.lineWidth = size * 0.05;
-            ctx.stroke();
-
-            ctx.font = `${size * 0.55}px sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(emoji, size / 2, size / 2 + size * 0.04);
-
-            const img = new Image();
-            img.src = canvas.toDataURL();
-            return img;
-        }
-
-        // BIRD TYPES
-        const BIRD_TYPES = {
-            red: {
-                id: 'red',
-                name: 'Red (Standard)',
-                abilityText: 'Standard flight & solid impact.',
-                radius: 20,
-                density: 0.0012,
-                color: '#ef4444',
-                img: createEmojiAvatar('😡', '#ef4444'),
-                hasAbility: false
-            },
-            chuck: {
-                id: 'chuck',
-                name: 'Chuck (Wood Breaker)',
-                abilityText: 'Click mid-flight to Dash & Pierce Wood!',
-                radius: 18,
-                density: 0.0010,
-                color: '#eab308',
-                img: createEmojiAvatar('⚡', '#eab308'),
-                hasAbility: true
-            },
-            bomb: {
-                id: 'bomb',
-                name: 'Bomb (Explosive)',
-                abilityText: 'Click mid-flight or on impact to Explode!',
-                radius: 23,
-                density: 0.0016,
-                color: '#1e293b',
-                img: createEmojiAvatar('💣', '#334155'),
-                hasAbility: true
-            },
-            terence: {
-                id: 'terence',
-                name: 'Terence (Heavyweight)',
-                abilityText: 'Massive weight & crushing power!',
-                radius: 32,
-                density: 0.0035,
-                color: '#991b1b',
-                img: createEmojiAvatar('👹', '#991b1b'),
-                hasAbility: false
-            }
-        };
-
-        // PIG VARIATION TYPES
-        const PIG_TYPES = {
-            minion: {
-                id: 'minion',
-                name: 'Minion Pig',
-                radius: 20,
-                health: 70,
-                armor: 1.0,
-                img: createEmojiAvatar('🐷', '#22c55e')
-            },
-            small: {
-                id: 'small',
-                name: 'Tiny Pig',
-                radius: 14,
-                health: 40,
-                armor: 1.0,
-                img: createEmojiAvatar('🐽', '#4ade80')
-            },
-            helmet: {
-                id: 'helmet',
-                name: 'Helmet Pig',
-                radius: 22,
-                health: 150,
-                armor: 0.6,
-                img: createEmojiAvatar('🪖', '#16a34a')
-            },
-            mustache: {
-                id: 'mustache',
-                name: 'Mustache Pig',
-                radius: 25,
-                health: 220,
-                armor: 0.75,
-                img: createEmojiAvatar('🥸', '#15803d')
-            },
-            boss: {
-                id: 'boss',
-                name: 'KING BOSS PIG',
-                radius: 46,
-                health: 800,
-                armor: 0.5,
-                isBoss: true,
-                img: createEmojiAvatar('👑', '#15803d')
-            }
-        };
-
-        // CELESTIAL BODIES
-        let celestialImages = {
-            sun: createEmojiAvatar('☀️', '#f59e0b', 180),
-            moon: createEmojiAvatar('🌙', '#0284c7', 180)
-        };
-
-        // ====================================================================
-        // MATTER.JS PHYSICS ENGINE & SLINGSHOT LOGIC
-        // ====================================================================
-        const { Engine, World, Bodies, Body, Vector, Events, Constraint } = Matter;
-
-        const canvas = document.getElementById('game-canvas');
-        const ctx = canvas.getContext('2d');
-
-        let engine, world;
-        let slingshotSeat = { x: 180, y: 0 };
-        let armLeft = { x: 165, y: 0 };
-        let armRight = { x: 195, y: 0 };
-
-        let bird = null;
-        let isDragging = false;
-        let dragPos = { x: 0, y: 0 };
-        let birdState = 'SEATED'; // 'SEATED', 'DRAGGING', 'FLYING', 'SETTLED'
-        let abilityUsed = false;
-
-        const MAX_PULL_RADIUS = 110;
-        const LAUNCH_FORCE_MULTIPLIER = 0.40;
-
-        let currentLevel = 1;
-        let score = 0;
-        let levelBirdQueue = [];
-        let currentBirdIndex = 0;
-        let targets = [];
-        let blocks = [];
-        let balloons = [];
-        let constraints = [];
-        let particles = [];
-        let explosionRings = [];
-        let trailingPoints = [];
-        let levelComplete = false;
-        let turnTimer = null;
-
-        // Dynamic Deformable Terrain Mesh State
-        let terrainPoints = [];
-        let groundBodies = [];
-        const TERRAIN_SEGMENT_WIDTH = 12;
-
-        let viewWidth = window.innerWidth;
-        let viewHeight = window.innerHeight;
-
-        function resizeCanvas() {
-            const container = canvas.parentElement;
-            viewWidth = container.clientWidth;
-            viewHeight = container.clientHeight;
-            canvas.width = viewWidth;
-            canvas.height = viewHeight;
-
-            slingshotSeat.x = Math.max(120, viewWidth * 0.18);
-            slingshotSeat.y = viewHeight - 160;
-
-            armLeft = { x: slingshotSeat.x - 14, y: slingshotSeat.y - 22 };
-            armRight = { x: slingshotSeat.x + 14, y: slingshotSeat.y - 22 };
-
-            if (bird && birdState === 'SEATED') {
-                Body.setPosition(bird, slingshotSeat);
-                Body.setVelocity(bird, { x: 0, y: 0 });
-            }
-        }
-
-        // ====================================================================
-        // DEFORMABLE TERRAIN ENGINE
-        // ====================================================================
-        function initDeformableTerrain() {
-            // Remove previous ground colliders
-            groundBodies.forEach(b => World.remove(world, b));
-            groundBodies = [];
-
-            const baseGroundY = viewHeight - 60;
-            const segmentCount = Math.ceil(viewWidth / TERRAIN_SEGMENT_WIDTH) + 2;
-
-            terrainPoints = [];
-            for (let i = 0; i < segmentCount; i++) {
-                terrainPoints.push({
-                    x: i * TERRAIN_SEGMENT_WIDTH,
-                    y: baseGroundY
-                });
-            }
-
-            rebuildGroundColliders();
-        }
-
-        function rebuildGroundColliders() {
-            groundBodies.forEach(b => World.remove(world, b));
-            groundBodies = [];
-
-            // Group adjacent segments into physical colliders
-            for (let i = 0; i < terrainPoints.length - 1; i++) {
-                const p1 = terrainPoints[i];
-                const p2 = terrainPoints[i + 1];
-                const midX = (p1.x + p2.x) / 2;
-                const midY = (p1.y + p2.y) / 2;
-                const length = Math.hypot(p2.x - p1.x, p2.y - p1.y) + 1;
-                const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-
-                const segmentBody = Bodies.rectangle(midX, midY + 30, length, 60, {
-                    isStatic: true,
-                    friction: 0.85,
-                    angle: angle
-                });
-                segmentBody.customType = 'ground';
-                groundBodies.push(segmentBody);
-            }
-
-            World.add(world, groundBodies);
-        }
-
-        function dentTerrain(impactX, depth, radius) {
-            let changed = false;
-            for (let i = 0; i < terrainPoints.length; i++) {
-                const pt = terrainPoints[i];
-                const dist = Math.abs(pt.x - impactX);
-                if (dist < radius) {
-                    const factor = Math.cos((dist / radius) * (Math.PI / 2));
-                    const indent = depth * factor;
-                    const maxIndentY = viewHeight - 10; // floor limit
-                    if (pt.y < maxIndentY) {
-                        pt.y = Math.min(maxIndentY, pt.y + indent);
-                        changed = true;
-                    }
-                }
-            }
-
-            if (changed) {
-                // Spawn dirt/rock particles
-                spawnParticles(impactX, viewHeight - 60, '#78350f', 16);
-                spawnParticles(impactX, viewHeight - 60, '#a16207', 10);
-                rebuildGroundColliders();
-            }
-        }
-
-        function initEngine() {
-            engine = Engine.create({
-                enableSleeping: false,
-                positionIterations: 10,
-                velocityIterations: 10
-            });
-            world = engine.world;
-            world.gravity.y = 0.98;
-
-            // Collision Listener
-            Events.on(engine, 'collisionStart', (event) => {
-                event.pairs.forEach((pair) => {
-                    const { bodyA, bodyB } = pair;
-                    const relativeVel = Vector.sub(bodyA.velocity, bodyB.velocity);
-                    const speed = Vector.magnitude(relativeVel);
-
-                    // Check for Ground Deformation Dents
-                    if (bodyA.customType === 'ground' || bodyB.customType === 'ground') {
-                        const dynamicBody = bodyA.customType === 'ground' ? bodyB : bodyA;
-                        if (speed > 3.0) {
-                            const dentAmount = Math.min(speed * 3.2, 45);
-                            const radius = Math.min(speed * 9, 85);
-                            dentTerrain(dynamicBody.position.x, dentAmount, radius);
-                        }
-                    }
-
-                    // Check Damage to Blocks & Targets
-                    [bodyA, bodyB].forEach((body) => {
-                        if (body.customType === 'block' || body.customType === 'target' || body.customType === 'tnt') {
-                            if (speed > 1.2) {
-                                sound.playImpact(body.materialType || 'wood', speed);
-                            }
-                            let dmgMult = 14;
-                            if ((bodyA.birdType === 'chuck' || bodyB.birdType === 'chuck') && body.materialType === 'wood') {
-                                dmgMult = 35;
-                            }
-                            if (bodyA.birdType === 'terence' || bodyB.birdType === 'terence') {
-                                dmgMult = 45;
-                            }
-
-                            if (speed > 1.8) {
-                                let dmg = speed * dmgMult;
-                                if (body.armor) dmg *= body.armor;
-                                body.health -= dmg;
-
-                                if (body.customType === 'target') {
-                                    sound.playPigSqueal(body.isBoss);
-                                }
-                            }
-                        }
-                    });
-
-                    // Auto explode Bomb or TNT on impact
-                    if (bodyA.birdType === 'bomb' && !abilityUsed) triggerBombExplosion(bodyA);
-                    else if (bodyB.birdType === 'bomb' && !abilityUsed) triggerBombExplosion(bodyB);
-
-                    if (bodyA.customType === 'tnt' && speed > 2.0) triggerTNTExplosion(bodyA);
-                    if (bodyB.customType === 'tnt' && speed > 2.0) triggerTNTExplosion(bodyB);
-                });
-            });
-        }
-
-        // ====================================================================
-        // INDESTRUCTIBLE HELIUM BALLOONS (Spring Buoyancy)
-        // ====================================================================
-        function createBalloon(x, y, attachBody = null) {
-            const radius = 18;
-            const balloon = Bodies.circle(x, y, radius, {
-                density: 0.0001,
-                frictionAir: 0.015,
-                restitution: 0.95
-            });
-
-            balloon.customType = 'balloon';
-            balloon.radius = radius;
-            balloon.color = ['#ef4444', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6'][Math.floor(Math.random() * 5)];
-
-            balloons.push(balloon);
-            World.add(world, balloon);
-
-            if (attachBody) {
-                const constraint = Constraint.create({
-                    bodyA: balloon,
-                    bodyB: attachBody,
-                    stiffness: 0.08,
-                    damping: 0.02,
-                    length: 65,
-                    render: { visible: true }
-                });
-                constraints.push(constraint);
-                World.add(world, constraint);
-                balloon.attachedConstraint = constraint;
-            }
-
-            return balloon;
-        }
-
-        // Apply dynamic upward buoyant force to indestructible helium balloons
-        function updateBalloons() {
-            balloons.forEach(b => {
-                Body.applyForce(b, b.position, { x: 0, y: -0.0028 });
-            });
-        }
-
-        // ====================================================================
-        // EXPLOSIONS & ABILITIES
-        // ====================================================================
-        function triggerBombExplosion(bombBody) {
-            if (abilityUsed) return;
-            abilityUsed = true;
-            sound.playExplosion();
-
-            const pos = bombBody.position;
-            const radius = 190;
-            const forceStrength = 0.09;
-
-            explosionRings.push({ x: pos.x, y: pos.y, radius: 10, maxRadius: radius, alpha: 1.0 });
-            spawnParticles(pos.x, pos.y, '#f97316', 30);
-            spawnParticles(pos.x, pos.y, '#334155', 20);
-
-            // Dent ground from bomb explosion
-            dentTerrain(pos.x, 35, 90);
-
-            const allBodies = [...blocks, ...targets, ...balloons];
-            allBodies.forEach((b) => {
-                const dist = Vector.magnitude(Vector.sub(b.position, pos));
-                if (dist < radius) {
-                    const normal = Vector.normalise(Vector.sub(b.position, pos));
-                    const impulse = Vector.mult(normal, (1 - dist / radius) * forceStrength);
-                    Body.applyForce(b, b.position, impulse);
-                    if (b.customType !== 'balloon') {
-                        b.health -= (1 - dist / radius) * 230;
-                    }
-                }
-            });
-
-            hideAbilityPrompt();
-        }
-
-        function triggerTNTExplosion(tntBody) {
-            if (tntBody.exploded) return;
-            tntBody.exploded = true;
-            sound.playExplosion();
-
-            const pos = tntBody.position;
-            const radius = 230;
-
-            explosionRings.push({ x: pos.x, y: pos.y, radius: 10, maxRadius: radius, alpha: 1.0 });
-            spawnParticles(pos.x, pos.y, '#ef4444', 35);
-            spawnParticles(pos.x, pos.y, '#f59e0b', 25);
-
-            tntBody.health = 0;
-
-            // Dent ground from TNT explosion
-            dentTerrain(pos.x, 45, 110);
-
-            const allBodies = [...blocks, ...targets, ...balloons];
-            allBodies.forEach((b) => {
-                const dist = Vector.magnitude(Vector.sub(b.position, pos));
-                if (dist < radius) {
-                    const normal = Vector.normalise(Vector.sub(b.position, pos));
-                    const impulse = Vector.mult(normal, (1 - dist / radius) * 0.13);
-                    Body.applyForce(b, b.position, impulse);
-                    if (b.customType !== 'balloon') {
-                        b.health -= (1 - dist / radius) * 310;
-                    }
-                }
-            });
-        }
-
-        function triggerActiveBirdAbility() {
-            if (birdState !== 'FLYING' || abilityUsed || !bird) return;
-
-            const type = bird.birdType;
-            if (type === 'chuck') {
-                abilityUsed = true;
-                sound.playAbility('chuck');
-                const currentVel = bird.velocity;
-                const newVel = Vector.mult(Vector.normalise(currentVel), 22);
-                Body.setVelocity(bird, newVel);
-                spawnParticles(bird.position.x, bird.position.y, '#facc15', 20);
-                hideAbilityPrompt();
-            } else if (type === 'bomb') {
-                triggerBombExplosion(bird);
-            }
-        }
-
-        function showAbilityPrompt(text) {
-            const prompt = document.getElementById('ability-prompt');
-            document.getElementById('ability-text').innerText = text;
-            prompt.classList.remove('opacity-0', '-translate-y-2');
-            prompt.classList.add('opacity-100', 'translate-y-0');
-        }
-
-        function hideAbilityPrompt() {
-            const prompt = document.getElementById('ability-prompt');
-            prompt.classList.remove('opacity-100', 'translate-y-0');
-            prompt.classList.add('opacity-0', '-translate-y-2');
-        }
-
-        // ====================================================================
-        // 7 HARD & STRATEGIC LEVELS WITH METAL BLOCKS
-        // ====================================================================
-        const LEVEL_DEFINITIONS = [
-            // Level 1: Outpost
-            {
-                queue: ['red', 'chuck', 'bomb'],
-                build: (groundY, rx) => {
-                    createBlock(rx, groundY - 40, 20, 80, 'wood');
-                    createBlock(rx + 110, groundY - 40, 20, 80, 'wood');
-                    createBlock(rx + 55, groundY - 90, 150, 20, 'wood');
-                    createTarget(rx + 55, groundY - 30, 'minion');
-
-                    createBlock(rx + 25, groundY - 130, 20, 60, 'glass');
-                    createBlock(rx + 85, groundY - 130, 20, 60, 'glass');
-                    createBlock(rx + 55, groundY - 170, 110, 20, 'glass');
-                    createTarget(rx + 55, groundY - 120, 'small');
-                }
-            },
-            // Level 2: Steel Citadel
-            {
-                queue: ['chuck', 'red', 'bomb', 'terence'],
-                build: (groundY, rx) => {
-                    createBlock(rx, groundY - 50, 25, 100, 'metal');
-                    createBlock(rx + 130, groundY - 50, 25, 100, 'metal');
-                    createTNT(rx + 65, groundY - 20);
-                    createBlock(rx + 65, groundY - 110, 170, 20, 'wood');
-                    createTarget(rx + 65, groundY - 140, 'helmet');
-
-                    createBlock(rx + 30, groundY - 170, 20, 80, 'wood');
-                    createBlock(rx + 100, groundY - 170, 20, 80, 'wood');
-                    createBlock(rx + 65, groundY - 220, 120, 20, 'stone');
-                    createTarget(rx + 65, groundY - 60, 'minion');
-                }
-            },
-            // Level 3: Bunker
-            {
-                queue: ['bomb', 'terence', 'chuck', 'red'],
-                build: (groundY, rx) => {
-                    createBlock(rx - 20, groundY - 40, 30, 80, 'stone');
-                    createBlock(rx + 60, groundY - 40, 30, 80, 'metal');
-                    createBlock(rx + 140, groundY - 40, 30, 80, 'stone');
-                    createBlock(rx + 60, groundY - 90, 210, 22, 'metal');
-
-                    createTarget(rx + 20, groundY - 30, 'mustache');
-                    createTNT(rx + 100, groundY - 30);
-
-                    createBlock(rx + 10, groundY - 140, 20, 80, 'wood');
-                    createBlock(rx + 110, groundY - 140, 20, 80, 'wood');
-                    createBlock(rx + 60, groundY - 190, 140, 20, 'glass');
-                    createTarget(rx + 60, groundY - 120, 'helmet');
-                }
-            },
-            // Level 4: Sky Fortress with Indestructible Balloons
-            {
-                queue: ['chuck', 'bomb', 'terence', 'red'],
-                build: (groundY, rx) => {
-                    createBlock(rx, groundY - 40, 20, 80, 'stone');
-                    createBlock(rx + 120, groundY - 40, 20, 80, 'stone');
-                    createBlock(rx + 60, groundY - 90, 160, 20, 'metal');
-                    createTarget(rx + 60, groundY - 30, 'mustache');
-
-                    // Floating platform with bouncy balloons
-                    const floatY = groundY - 220;
-                    const platform = createBlock(rx + 60, floatY, 200, 22, 'wood');
-                    
-                    createBalloon(rx - 20, floatY - 40, platform);
-                    createBalloon(rx + 140, floatY - 40, platform);
-
-                    createBlock(rx + 10, floatY - 40, 18, 60, 'glass');
-                    createBlock(rx + 110, floatY - 40, 18, 60, 'glass');
-                    createTNT(rx + 60, floatY - 30);
-                    createTarget(rx + 60, floatY - 80, 'helmet');
-                }
-            },
-            // Level 5: Mega Bastion
-            {
-                queue: ['red', 'bomb', 'chuck', 'terence', 'bomb'],
-                build: (groundY, rx) => {
-                    createBlock(rx - 30, groundY - 50, 30, 100, 'metal');
-                    createBlock(rx + 50, groundY - 50, 30, 100, 'stone');
-                    createBlock(rx + 130, groundY - 50, 30, 100, 'metal');
-                    createBlock(rx + 50, groundY - 110, 210, 25, 'metal');
-
-                    createTarget(rx + 10, groundY - 30, 'helmet');
-                    createTNT(rx + 50, groundY - 140);
-                    createTarget(rx + 90, groundY - 30, 'mustache');
-
-                    createBlock(rx + 10, groundY - 170, 20, 80, 'wood');
-                    createBlock(rx + 90, groundY - 170, 20, 80, 'wood');
-                    createBlock(rx + 50, groundY - 220, 130, 20, 'wood');
-                    createTarget(rx + 50, groundY - 250, 'small');
-                }
-            },
-            // Level 6: Titanium Fortress
-            {
-                queue: ['terence', 'bomb', 'chuck', 'red', 'bomb'],
-                build: (groundY, rx) => {
-                    createBlock(rx - 40, groundY - 60, 35, 120, 'metal');
-                    createBlock(rx + 40, groundY - 60, 35, 120, 'stone');
-                    createBlock(rx + 120, groundY - 60, 35, 120, 'metal');
-                    createBlock(rx + 40, groundY - 130, 240, 28, 'metal');
-
-                    createTarget(rx, groundY - 30, 'helmet');
-                    createTarget(rx + 80, groundY - 30, 'helmet');
-                    createTNT(rx + 40, groundY - 30);
-
-                    const floatY = groundY - 250;
-                    const p1 = createBlock(rx + 40, floatY, 220, 24, 'metal');
-                    createBalloon(rx - 30, floatY - 50, p1);
-                    createBalloon(rx + 110, floatY - 50, p1);
-
-                    createBlock(rx + 10, floatY - 40, 20, 70, 'wood');
-                    createBlock(rx + 70, floatY - 40, 20, 70, 'wood');
-                    createTarget(rx + 40, floatY - 30, 'mustache');
-                    createTNT(rx + 40, floatY - 80);
-                }
-            },
-            // Level 7: KING BOSS PIG BATTLE
-            {
-                queue: ['terence', 'bomb', 'chuck', 'red', 'bomb', 'terence'],
-                build: (groundY, rx) => {
-                    createBlock(rx - 50, groundY - 70, 40, 140, 'metal');
-                    createBlock(rx + 50, groundY - 70, 40, 140, 'metal');
-                    createBlock(rx + 150, groundY - 70, 40, 140, 'metal');
-                    createBlock(rx + 50, groundY - 150, 280, 32, 'metal');
-
-                    createTNT(rx, groundY - 30);
-                    createTNT(rx + 100, groundY - 30);
-                    createTarget(rx + 50, groundY - 30, 'mustache');
-
-                    const floatY = groundY - 260;
-                    const throne = createBlock(rx + 50, floatY, 220, 26, 'metal');
-                    createBalloon(rx - 20, floatY - 60, throne);
-                    createBalloon(rx + 120, floatY - 60, throne);
-
-                    createBlock(rx - 10, floatY - 50, 24, 80, 'wood');
-                    createBlock(rx + 110, floatY - 50, 24, 80, 'wood');
-                    createBlock(rx + 50, floatY - 100, 160, 20, 'glass');
-
-                    createTarget(rx + 50, floatY - 50, 'boss');
-                }
-            }
-        ];
-
-        function loadLevel(levelNum) {
-            if (turnTimer) clearTimeout(turnTimer);
-
-            World.clear(world);
-            Engine.clear(engine);
-
-            blocks = [];
-            targets = [];
-            balloons = [];
-            constraints = [];
-            particles = [];
-            explosionRings = [];
-            trailingPoints = [];
-            bird = null;
-            birdState = 'SEATED';
-            isDragging = false;
-            levelComplete = false;
-            abilityUsed = false;
-            hideAbilityPrompt();
-
-            const leftWall = Bodies.rectangle(-30, viewHeight / 2, 60, viewHeight * 2, { isStatic: true });
-            const rightWall = Bodies.rectangle(viewWidth + 30, viewHeight / 2, 60, viewHeight * 2, { isStatic: true });
-            World.add(world, [leftWall, rightWall]);
-
-            initDeformableTerrain();
-
-            const groundY = viewHeight - 60;
-            const rightX = Math.min(viewWidth - 280, viewWidth * 0.65);
-
-            const def = LEVEL_DEFINITIONS[(levelNum - 1) % LEVEL_DEFINITIONS.length];
-            levelBirdQueue = [...def.queue];
-            currentBirdIndex = 0;
-
-            def.build(groundY, rightX);
-
-            spawnBirdToSeat();
-
-            document.getElementById('level-select').value = levelNum;
-            document.getElementById('score-display').innerText = score;
-            updateShotsUI();
-            document.getElementById('status-modal').classList.add('hidden');
-        }
-
-        function createBlock(x, y, width, height, material = 'wood', isStatic = false) {
-            let density = 0.001;
-            let health = 100;
-
-            if (material === 'metal') {
-                density = 0.0055;
-                health = 520; // Metal is extremely tough
-            } else if (material === 'stone') {
-                density = 0.0028;
-                health = 240;
-            } else if (material === 'glass') {
-                density = 0.0005;
-                health = 40;
-            }
-
-            const block = Bodies.rectangle(x, y, width, height, {
-                isStatic: isStatic,
-                density: density,
-                friction: 0.6,
-                restitution: 0.1
-            });
-
-            block.customType = 'block';
-            block.materialType = material;
-            block.width = width;
-            block.height = height;
-            block.health = health;
-            block.maxHealth = health;
-
-            blocks.push(block);
-            World.add(world, block);
-            return block;
-        }
-
-        function createTNT(x, y) {
-            const size = 34;
-            const tnt = Bodies.rectangle(x, y, size, size, {
-                density: 0.001,
-                friction: 0.5,
-                restitution: 0.2
-            });
-
-            tnt.customType = 'tnt';
-            tnt.width = size;
-            tnt.height = size;
-            tnt.health = 30;
-            tnt.maxHealth = 30;
-            tnt.exploded = false;
-
-            blocks.push(tnt);
-            World.add(world, tnt);
-            return tnt;
-        }
-
-        function createTarget(x, y, typeId = 'minion') {
-            const pigDef = PIG_TYPES[typeId];
-            const target = Bodies.circle(x, y, pigDef.radius, {
-                density: 0.0012,
-                friction: 0.5,
-                restitution: 0.2
-            });
-
-            target.customType = 'target';
-            target.pigType = typeId;
-            target.radius = pigDef.radius;
-            target.health = pigDef.health;
-            target.maxHealth = pigDef.health;
-            target.armor = pigDef.armor;
-            target.isBoss = pigDef.isBoss || false;
-
-            targets.push(target);
-            World.add(world, target);
-            return target;
-        }
-
-        function spawnBirdToSeat() {
-            if (bird) World.remove(world, bird);
-
-            if (currentBirdIndex >= levelBirdQueue.length) return;
-
-            const birdTypeId = levelBirdQueue[currentBirdIndex];
-            const birdDef = BIRD_TYPES[birdTypeId];
-
-            bird = Bodies.circle(slingshotSeat.x, slingshotSeat.y, birdDef.radius, {
-                density: birdDef.density,
-                frictionAir: 0.002,
-                friction: 0.5,
-                restitution: 0.35,
-                isStatic: true
-            });
-
-            bird.customType = 'bird';
-            bird.birdType = birdTypeId;
-            bird.radius = birdDef.radius;
-
-            World.add(world, bird);
-            birdState = 'SEATED';
-            dragPos = { x: slingshotSeat.x, y: slingshotSeat.y };
-            trailingPoints = [];
-            abilityUsed = false;
-            hideAbilityPrompt();
-        }
-
-        // ====================================================================
-        // SLINGSHOT CONTROLS
-        // ====================================================================
-        function getPointerPos(e) {
-            const rect = canvas.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            return {
-                x: clientX - rect.left,
-                y: clientY - rect.top
-            };
-        }
-
-        function handlePointerDown(e) {
-            if (levelComplete) return;
-
-            if (birdState === 'FLYING') {
-                triggerActiveBirdAbility();
-                return;
-            }
-
-            if (birdState !== 'SEATED') return;
-
-            const pos = getPointerPos(e);
-            const dist = Vector.magnitude(Vector.sub(pos, bird.position));
-
-            if (dist < 60) {
-                isDragging = true;
-                birdState = 'DRAGGING';
-                dragPos = pos;
-                sound.playStretch();
-            }
-        }
-
-        function handlePointerMove(e) {
-            if (!isDragging || birdState !== 'DRAGGING') return;
-            const pos = getPointerPos(e);
-            const pullVector = Vector.sub(pos, slingshotSeat);
-            const distance = Vector.magnitude(pullVector);
-
-            if (distance > MAX_PULL_RADIUS) {
-                const angle = Math.atan2(pullVector.y, pullVector.x);
-                dragPos = {
-                    x: slingshotSeat.x + Math.cos(angle) * MAX_PULL_RADIUS,
-                    y: slingshotSeat.y + Math.sin(angle) * MAX_PULL_RADIUS
-                };
-            } else {
-                dragPos = pos;
-            }
-
-            Body.setPosition(bird, dragPos);
-        }
-
-        function handlePointerUp() {
-            if (!isDragging || birdState !== 'DRAGGING') return;
-            isDragging = false;
-            birdState = 'FLYING';
-
-            const pullVector = Vector.sub(slingshotSeat, bird.position);
-
-            Body.setStatic(bird, false);
-
-            const launchVelocity = Vector.mult(pullVector, LAUNCH_FORCE_MULTIPLIER);
-            Body.setVelocity(bird, launchVelocity);
-
-            sound.playLaunch();
-
-            const birdDef = BIRD_TYPES[bird.birdType];
-            if (birdDef.hasAbility) {
-                showAbilityPrompt(birdDef.abilityText);
-            }
-
-            currentBirdIndex++;
-            updateShotsUI();
-
-            scheduleTurnCheck();
-        }
-
-        function scheduleTurnCheck() {
-            if (turnTimer) clearTimeout(turnTimer);
-
-            turnTimer = setInterval(() => {
-                if (!bird || birdState !== 'FLYING') {
-                    clearInterval(turnTimer);
-                    return;
-                }
-
-                const speed = Vector.magnitude(bird.velocity);
-                const isOutOfBounds = bird.position.x < -50 || bird.position.x > viewWidth + 100 || bird.position.y > viewHeight;
-
-                if (speed < 0.25 || isOutOfBounds) {
-                    clearInterval(turnTimer);
-                    birdState = 'SETTLED';
-                    hideAbilityPrompt();
-
-                    if (targets.length === 0) {
-                        handleVictory();
-                    } else if (currentBirdIndex < levelBirdQueue.length) {
-                        setTimeout(spawnBirdToSeat, 600);
-                    } else {
-                        setTimeout(checkTurnEnd, 1500);
-                    }
-                }
-            }, 300);
-        }
-
-        function checkTurnEnd() {
-            if (targets.length === 0) {
-                handleVictory();
-            } else {
-                handleDefeat();
-            }
-        }
-
-        canvas.addEventListener('mousedown', handlePointerDown);
-        canvas.addEventListener('mousemove', handlePointerMove);
-        window.addEventListener('mouseup', handlePointerUp);
-
-        canvas.addEventListener('touchstart', handlePointerDown, { passive: true });
-        canvas.addEventListener('touchmove', handlePointerMove, { passive: true });
-        window.addEventListener('touchend', handlePointerUp);
-
-        // ====================================================================
-        // WIN/LOSS & PARTICLES
-        // ====================================================================
-        function handleVictory() {
-            levelComplete = true;
-            sound.playVictory();
-
-            const remaining = levelBirdQueue.length - currentBirdIndex;
-            const bonus = remaining * 500;
-            const totalLevelScore = score + bonus;
-
-            document.getElementById('modal-title').innerText = "LEVEL CLEAR!";
-            document.getElementById('modal-subtitle').innerText = "Awesome shot! All pigs eliminated.";
-            document.getElementById('modal-icon').className = "text-6xl mb-3 text-amber-400";
-            document.getElementById('modal-icon').innerHTML = '<i class="fa-solid fa-trophy"></i>';
-
-            document.getElementById('modal-destr-score').innerText = score;
-            document.getElementById('modal-bonus-score').innerText = `+${bonus}`;
-            document.getElementById('modal-total-score').innerText = totalLevelScore;
-
-            const starContainer = document.getElementById('star-rating');
-            const stars = remaining >= 2 ? 3 : (remaining >= 1 ? 2 : 1);
-            starContainer.innerHTML = '';
-            for (let i = 0; i < 3; i++) {
-                starContainer.innerHTML += `<i class="fa-solid fa-star ${i < stars ? 'text-amber-400' : 'text-slate-600'}"></i>`;
-            }
-
-            document.getElementById('modal-btn-next').onclick = () => {
-                currentLevel = (currentLevel % 7) + 1;
-                loadLevel(currentLevel);
-            };
-
-            document.getElementById('status-modal').classList.remove('hidden');
-        }
-
-        function handleDefeat() {
-            levelComplete = true;
-
-            document.getElementById('modal-title').innerText = "LEVEL FAILED";
-            document.getElementById('modal-subtitle').innerText = "Out of birds! The pigs survived.";
-            document.getElementById('modal-icon').className = "text-6xl mb-3 text-red-500";
-            document.getElementById('modal-icon').innerHTML = '<i class="fa-solid fa-face-frown"></i>';
-
-            document.getElementById('modal-destr-score').innerText = score;
-            document.getElementById('modal-bonus-score').innerText = "+0";
-            document.getElementById('modal-total-score').innerText = score;
-
-            document.getElementById('star-rating').innerHTML = `
-                <i class="fa-solid fa-star text-slate-600"></i>
-                <i class="fa-solid fa-star text-slate-600"></i>
-                <i class="fa-solid fa-star text-slate-600"></i>
-            `;
-
-            document.getElementById('modal-btn-next').onclick = () => {
-                loadLevel(currentLevel);
-            };
-
-            document.getElementById('status-modal').classList.remove('hidden');
-        }
-
-        function spawnParticles(x, y, color, count = 10) {
-            for (let i = 0; i < count; i++) {
-                particles.push({
-                    x, y,
-                    vx: (Math.random() - 0.5) * 8,
-                    vy: (Math.random() - 0.5) * 8,
-                    size: Math.random() * 5 + 2,
-                    color: color,
-                    alpha: 1.0
-                });
-            }
-        }
-
-        // ====================================================================
-        // AUTOMATIC CONTINUOUS DAY/NIGHT ORBIT SYSTEM
-        // ====================================================================
-        function drawSkyAndCelestial() {
-            const totalCycle = 60000; // 60s day/night full loop
-            const elapsed = (Date.now() % totalCycle) / totalCycle; // 0.0 to 1.0
-            const angle = elapsed * Math.PI * 2; // 0 to 2PI
-
-            // Smooth Interpolated Sky Colors
-            let skyGrad = ctx.createLinearGradient(0, 0, 0, viewHeight);
-
-            let phaseName = 'Daytime';
-            let iconClass = 'fa-solid fa-sun text-amber-400';
-
-            if (elapsed < 0.25) {
-                // Sunrise -> Day
-                skyGrad.addColorStop(0, '#38bdf8');
-                skyGrad.addColorStop(0.6, '#bae6fd');
-                skyGrad.addColorStop(1, '#ecfdf5');
-                phaseName = 'Morning';
-            } else if (elapsed < 0.5) {
-                // Day -> Sunset
-                skyGrad.addColorStop(0, '#c2410c');
-                skyGrad.addColorStop(0.5, '#f59e0b');
-                skyGrad.addColorStop(1, '#fef3c7');
-                phaseName = 'Sunset';
-                iconClass = 'fa-solid fa-cloud-sun text-orange-400';
-            } else if (elapsed < 0.75) {
-                // Sunset -> Night
-                skyGrad.addColorStop(0, '#020617');
-                skyGrad.addColorStop(0.7, '#0f172a');
-                skyGrad.addColorStop(1, '#1e293b');
-                phaseName = 'Nighttime';
-                iconClass = 'fa-solid fa-moon text-sky-300';
-            } else {
-                // Night -> Sunrise
-                skyGrad.addColorStop(0, '#4c1d95');
-                skyGrad.addColorStop(0.6, '#9333ea');
-                skyGrad.addColorStop(1, '#fef08a');
-                phaseName = 'Dawn';
-                iconClass = 'fa-solid fa-sun text-amber-300';
-            }
-
-            ctx.fillStyle = skyGrad;
-            ctx.fillRect(0, 0, viewWidth, viewHeight);
-
-            // Update Header Badge
-            document.getElementById('time-badge-text').innerText = phaseName;
-            document.getElementById('time-badge-icon').className = iconClass;
-
-            // Night Stars
-            if (elapsed >= 0.5 && elapsed <= 0.85) {
-                ctx.fillStyle = '#ffffff';
-                for (let i = 0; i < 40; i++) {
-                    const sx = (Math.sin(i * 99) * 0.5 + 0.5) * viewWidth;
-                    const sy = (Math.cos(i * 33) * 0.5 + 0.5) * (viewHeight * 0.6);
-                    ctx.globalAlpha = Math.sin(Date.now() * 0.003 + i) * 0.4 + 0.6;
-                    ctx.fillRect(sx, sy, 2, 2);
-                }
-                ctx.globalAlpha = 1.0;
-            }
-
-            // CELESTIAL ORBIT MOVEMENT (Sun & Moon Opposite Sides)
-            const sunAngle = angle - Math.PI / 2;
-            const moonAngle = sunAngle + Math.PI;
-
-            const sunX = viewWidth / 2 + Math.cos(sunAngle) * (viewWidth * 0.45);
-            const sunY = (viewHeight - 60) - Math.sin(sunAngle) * (viewHeight * 0.5);
-
-            const moonX = viewWidth / 2 + Math.cos(moonAngle) * (viewWidth * 0.45);
-            const moonY = (viewHeight - 60) - Math.sin(moonAngle) * (viewHeight * 0.5);
-
-            // Draw Sun
-            if (sunY < viewHeight) {
-                drawOrb(sunX, sunY, celestialImages.sun, true);
-            }
-            // Draw Moon
-            if (moonY < viewHeight) {
-                drawOrb(moonX, moonY, celestialImages.moon, false);
-            }
-        }
-
-        function drawOrb(cx, cy, imgObj, isSun) {
-            const radius = 42;
-            const time = Date.now() * 0.001;
-
-            ctx.save();
-            ctx.translate(cx, cy);
-
-            if (isSun) {
-                // Golden Solar Rays
-                ctx.strokeStyle = 'rgba(251, 191, 36, 0.38)';
-                ctx.lineWidth = 3;
-                for (let i = 0; i < 12; i++) {
-                    const a = (i / 12) * Math.PI * 2 + time * 0.2;
-                    const len = radius + 22 + Math.sin(time * 3 + i) * 6;
-                    ctx.beginPath();
-                    ctx.moveTo(Math.cos(a) * (radius + 4), Math.sin(a) * (radius + 4));
-                    ctx.lineTo(Math.cos(a) * len, Math.sin(a) * len);
-                    ctx.stroke();
-                }
-                ctx.shadowColor = '#f59e0b';
-                ctx.shadowBlur = 25;
-            } else {
-                // Cool Cyan Lunar Halo Rays
-                ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
-                ctx.lineWidth = 2;
-                for (let i = 0; i < 8; i++) {
-                    const a = (i / 8) * Math.PI * 2 - time * 0.1;
-                    const len = radius + 18 + Math.cos(time * 2 + i) * 5;
-                    ctx.beginPath();
-                    ctx.moveTo(Math.cos(a) * (radius + 4), Math.sin(a) * (radius + 4));
-                    ctx.lineTo(Math.cos(a) * len, Math.sin(a) * len);
-                    ctx.stroke();
-                }
-                ctx.shadowColor = '#0284c7';
-                ctx.shadowBlur = 20;
-            }
-
-            ctx.drawImage(imgObj, -radius, -radius, radius * 2, radius * 2);
-            ctx.restore();
-        }
-
-        // ====================================================================
-        // MAIN CANVAS RENDER LOOP
-        // ====================================================================
-        function render() {
-            Engine.update(engine, 1000 / 60);
-            updateBalloons();
-
-            ctx.clearRect(0, 0, viewWidth, viewHeight);
-
-            // Sky & Orbiting Celestial Bodies
-            drawSkyAndCelestial();
-
-            // RENDER DEFORMABLE GROUND MESH
-            if (terrainPoints.length > 0) {
-                ctx.beginPath();
-                ctx.moveTo(0, viewHeight);
-                ctx.lineTo(terrainPoints[0].x, terrainPoints[0].y);
-
-                for (let i = 1; i < terrainPoints.length; i++) {
-                    ctx.lineTo(terrainPoints[i].x, terrainPoints[i].y);
-                }
-
-                ctx.lineTo(viewWidth, viewHeight);
-                ctx.closePath();
-
-                // Ground Fill
-                ctx.fillStyle = '#15803d'; // Green Grass surface
-                ctx.fill();
-
-                ctx.strokeStyle = '#86efac';
-                ctx.lineWidth = 3;
-                ctx.stroke();
-
-                // Dirt under layer
-                ctx.fillStyle = '#78350f';
-                ctx.beginPath();
-                ctx.moveTo(0, viewHeight);
-                for (let i = 0; i < terrainPoints.length; i++) {
-                    ctx.lineTo(terrainPoints[i].x, terrainPoints[i].y + 12);
-                }
-                ctx.lineTo(viewWidth, viewHeight);
-                ctx.closePath();
-                ctx.fill();
-            }
-
-            // Trailing Dots for launched bird
-            if (birdState === 'FLYING' && bird) {
-                if (Math.abs(bird.velocity.x) > 0.4 || Math.abs(bird.velocity.y) > 0.4) {
-                    trailingPoints.push({ x: bird.position.x, y: bird.position.y });
-                    if (trailingPoints.length > 25) trailingPoints.shift();
-                }
-            }
-            ctx.beginPath();
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-            ctx.lineWidth = 3;
-            ctx.setLineDash([4, 4]);
-            for (let i = 0; i < trailingPoints.length - 1; i++) {
-                ctx.moveTo(trailingPoints[i].x, trailingPoints[i].y);
-                ctx.lineTo(trailingPoints[i + 1].x, trailingPoints[i + 1].y);
-            }
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            // Synchronized Trajectory Prediction
-            if (birdState === 'DRAGGING') {
-                const pullVector = Vector.sub(slingshotSeat, bird.position);
-                const launchVel = Vector.mult(pullVector, LAUNCH_FORCE_MULTIPLIER);
-                const g = engine.world.gravity.y;
-                const airResistance = 1 - 0.002;
-
-                let simPos = { x: bird.position.x, y: bird.position.y };
-                let simVel = { x: launchVel.x, y: launchVel.y };
-
-                for (let i = 0; i < 35; i++) {
-                    simVel.x *= airResistance;
-                    simVel.y = (simVel.y + g) * airResistance;
-                    simPos.x += simVel.x;
-                    simPos.y += simVel.y;
-
-                    ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0.1, 1 - i / 35)})`;
-                    ctx.beginPath();
-                    ctx.arc(simPos.x, simPos.y, Math.max(1.5, 4.5 - (i * 0.09)), 0, Math.PI * 2);
-                    ctx.fill();
-
-                    if (simPos.y >= viewHeight - 60) break;
-                }
-            }
-
-            // Draw Elastic Ropes attached to Indestructible Balloons
-            constraints.forEach((c) => {
-                if (c.bodyA && c.bodyB) {
-                    ctx.beginPath();
-                    ctx.strokeStyle = '#f8fafc';
-                    ctx.lineWidth = 2.5;
-                    ctx.moveTo(c.bodyA.position.x, c.bodyA.position.y);
-                    ctx.lineTo(c.bodyB.position.x, c.bodyB.position.y);
-                    ctx.stroke();
-                }
-            });
-
-            // Draw Indestructible Bouncy Balloons
-            balloons.forEach((bal) => {
-                ctx.save();
-                ctx.translate(bal.position.x, bal.position.y);
-                ctx.fillStyle = bal.color;
-                ctx.beginPath();
-                ctx.arc(0, 0, bal.radius, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-
-                // Shiny highlight
-                ctx.fillStyle = 'rgba(255,255,255,0.7)';
-                ctx.beginPath();
-                ctx.arc(-bal.radius * 0.3, -bal.radius * 0.3, bal.radius * 0.25, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.restore();
-            });
-
-            // Draw BACK Slingshot Band
-            if (birdState === 'DRAGGING' || birdState === 'SEATED') {
-                ctx.beginPath();
-                ctx.lineWidth = 6;
-                ctx.strokeStyle = '#271c19';
-                ctx.moveTo(armRight.x, armRight.y);
-                ctx.lineTo(bird.position.x, bird.position.y);
-                ctx.stroke();
-            }
-
-            // Draw Blocks (Metal, Stone, Wood, Glass, TNT)
-            for (let i = blocks.length - 1; i >= 0; i--) {
-                const b = blocks[i];
-                if (b.health <= 0) {
-                    if (b.customType === 'tnt') triggerTNTExplosion(b);
-                    spawnParticles(b.position.x, b.position.y, b.materialType === 'metal' ? '#e2e8f0' : (b.materialType === 'wood' ? '#d97706' : (b.materialType === 'stone' ? '#94a3b8' : '#38bdf8')));
-                    World.remove(world, b);
-                    blocks.splice(i, 1);
-                    score += b.materialType === 'metal' ? 300 : 100;
-                    document.getElementById('score-display').innerText = score;
-                    continue;
-                }
-
-                ctx.save();
-                ctx.translate(b.position.x, b.position.y);
-                ctx.rotate(b.angle);
-
-                if (b.customType === 'tnt') {
-                    ctx.fillStyle = '#dc2626';
-                    ctx.fillRect(-b.width / 2, -b.height / 2, b.width, b.height);
-                    ctx.strokeStyle = '#f59e0b';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(-b.width / 2 + 2, -b.height / 2 + 2, b.width - 4, b.height - 4);
-                    
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = 'bold 11px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('TNT', 0, 1);
-                } else {
-                    if (b.materialType === 'metal') {
-                        // STEEL / METAL BLOCK WITH RIVETS
-                        ctx.fillStyle = '#334155';
-                        ctx.fillRect(-b.width / 2, -b.height / 2, b.width, b.height);
-
-                        // Metallic Sheen
-                        ctx.strokeStyle = '#cbd5e1';
-                        ctx.lineWidth = 2;
-                        ctx.strokeRect(-b.width / 2, -b.height / 2, b.width, b.height);
-
-                        // Corner Rivets
-                        ctx.fillStyle = '#94a3b8';
-                        const rx = b.width / 2 - 4;
-                        const ry = b.height / 2 - 4;
-                        ctx.fillRect(-rx, -ry, 3, 3);
-                        ctx.fillRect(rx - 3, -ry, 3, 3);
-                        ctx.fillRect(-rx, ry - 3, 3, 3);
-                        ctx.fillRect(rx - 3, ry - 3, 3, 3);
-                    } else if (b.materialType === 'wood') {
-                        ctx.fillStyle = '#b45309';
-                        ctx.fillRect(-b.width / 2, -b.height / 2, b.width, b.height);
-                        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-                        ctx.lineWidth = 2;
-                        ctx.strokeRect(-b.width / 2, -b.height / 2, b.width, b.height);
-                    } else if (b.materialType === 'stone') {
-                        ctx.fillStyle = '#64748b';
-                        ctx.fillRect(-b.width / 2, -b.height / 2, b.width, b.height);
-                        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-                        ctx.lineWidth = 2;
-                        ctx.strokeRect(-b.width / 2, -b.height / 2, b.width, b.height);
-                    } else if (b.materialType === 'glass') {
-                        ctx.fillStyle = '#38bdf8';
-                        ctx.fillRect(-b.width / 2, -b.height / 2, b.width, b.height);
-                        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-                        ctx.lineWidth = 1.5;
-                        ctx.strokeRect(-b.width / 2, -b.height / 2, b.width, b.height);
-                    }
-
-                    if (b.health / b.maxHealth < 0.65) {
-                        ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
-                        ctx.lineWidth = 2;
-                        ctx.beginPath();
-                        ctx.moveTo(-b.width / 4, -b.height / 4);
-                        ctx.lineTo(b.width / 4, b.height / 4);
-                        ctx.stroke();
-                    }
-                }
-
-                ctx.restore();
-            }
-
-            // Draw Targets & Boss Pig
-            for (let i = targets.length - 1; i >= 0; i--) {
-                const t = targets[i];
-                if (t.health <= 0) {
-                    sound.playPigSqueal(t.isBoss);
-                    spawnParticles(t.position.x, t.position.y, '#22c55e', t.isBoss ? 40 : 16);
-                    World.remove(world, t);
-                    targets.splice(i, 1);
-                    score += t.isBoss ? 3000 : 500;
-                    document.getElementById('score-display').innerText = score;
-
-                    if (targets.length === 0) {
-                        setTimeout(handleVictory, 600);
-                    }
-                    continue;
-                }
-
-                ctx.save();
-                ctx.translate(t.position.x, t.position.y);
-                ctx.rotate(t.angle);
-
-                const pigDef = PIG_TYPES[t.pigType];
-                const r = t.radius;
-                ctx.drawImage(pigDef.img, -r, -r, r * 2, r * 2);
-
-                ctx.restore();
-
-                // BOSS HEALTH BAR OVERLAY
-                if (t.isBoss) {
-                    const healthRatio = Math.max(0, t.health / t.maxHealth);
-                    const barW = 80;
-                    const barH = 10;
-                    const bx = t.position.x - barW / 2;
-                    const by = t.position.y - r - 22;
-
-                    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-                    ctx.fillRect(bx - 2, by - 2, barW + 4, barH + 4);
-
-                    ctx.fillStyle = healthRatio > 0.5 ? '#22c55e' : (healthRatio > 0.25 ? '#eab308' : '#ef4444');
-                    ctx.fillRect(bx, by, barW * healthRatio, barH);
-
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 1.5;
-                    ctx.strokeRect(bx, by, barW, barH);
-
-                    ctx.fillStyle = '#fef08a';
-                    ctx.font = 'bold 10px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('KING BOSS', t.position.x, by - 4);
-                }
-            }
-
-            // Draw Slingshot Frame
-            const groundY = viewHeight - 60;
-            ctx.fillStyle = '#451a03';
-            ctx.fillRect(slingshotSeat.x - 7, slingshotSeat.y, 14, groundY - slingshotSeat.y);
-            ctx.fillRect(armLeft.x - 4, armLeft.y, 8, 26);
-            ctx.fillRect(armRight.x - 4, armRight.y, 8, 26);
-
-            // Draw Active Bird
-            if (bird) {
-                ctx.save();
-                ctx.translate(bird.position.x, bird.position.y);
-                ctx.rotate(bird.angle);
-
-                const birdDef = BIRD_TYPES[bird.birdType];
-                const r = bird.radius;
-                ctx.drawImage(birdDef.img, -r, -r, r * 2, r * 2);
-
-                ctx.restore();
-            }
-
-            // Draw FRONT Slingshot Band
-            if (birdState === 'DRAGGING' || birdState === 'SEATED') {
-                ctx.beginPath();
-                ctx.lineWidth = 6;
-                ctx.strokeStyle = '#451a03';
-                ctx.moveTo(armLeft.x, armLeft.y);
-                ctx.lineTo(bird.position.x, bird.position.y);
-                ctx.stroke();
-            }
-
-            // Draw Explosion Rings
-            for (let i = explosionRings.length - 1; i >= 0; i--) {
-                const ring = explosionRings[i];
-                ring.radius += 10;
-                ring.alpha -= 0.05;
-
-                if (ring.alpha <= 0 || ring.radius >= ring.maxRadius) {
-                    explosionRings.splice(i, 1);
-                    continue;
-                }
-
-                ctx.strokeStyle = `rgba(249, 115, 22, ${ring.alpha})`;
-                ctx.lineWidth = 4;
-                ctx.beginPath();
-                ctx.arc(ring.x, ring.y, ring.radius, 0, Math.PI * 2);
-                ctx.stroke();
-            }
-
-            // Draw Particles
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.alpha -= 0.03;
-
-                if (p.alpha <= 0) {
-                    particles.splice(i, 1);
-                    continue;
-                }
-
-                ctx.fillStyle = p.color;
-                ctx.globalAlpha = p.alpha;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.globalAlpha = 1.0;
-            }
-
-            requestAnimationFrame(render);
-        }
-
-        // ====================================================================
-        // UI & CUSTOMIZATION MODAL CONTROLS
-        // ====================================================================
-        function updateShotsUI() {
-            const container = document.getElementById('shots-container');
-            container.innerHTML = '';
-
-            for (let i = currentBirdIndex + 1; i < levelBirdQueue.length; i++) {
-                const birdTypeId = levelBirdQueue[i];
-                const birdDef = BIRD_TYPES[birdTypeId];
-                container.innerHTML += `
-                    <div class="w-6 h-6 rounded-full border border-slate-500 overflow-hidden bg-slate-800 flex items-center justify-center">
-                        <img src="${birdDef.img.src}" class="w-full h-full object-cover">
-                    </div>
-                `;
-            }
-        }
-
-        function populateCustomizationModal() {
-            // Birds List
-            const birdContainer = document.getElementById('bird-custom-list');
-            birdContainer.innerHTML = '';
-
-            Object.values(BIRD_TYPES).forEach(birdDef => {
-                const row = document.createElement('div');
-                row.className = 'bg-slate-900/50 p-3 rounded-xl border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-3';
-
-                row.innerHTML = `
-                    <div class="flex items-center space-x-3">
-                        <img id="preview-${birdDef.id}" src="${birdDef.img.src}" class="w-10 h-10 rounded-xl object-contain bg-slate-800 border border-slate-600 p-1">
-                        <div>
-                            <span class="text-xs font-bold text-white block">${birdDef.name}</span>
-                            <span class="text-[10px] text-slate-400">${birdDef.abilityText}</span>
-                        </div>
-                    </div>
-                    <div class="flex space-x-2">
-                        <input type="file" id="file-${birdDef.id}" accept="image/*" class="hidden">
-                        <button onclick="document.getElementById('file-${birdDef.id}').click()" class="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition flex items-center">
-                            <i class="fa-solid fa-upload me-1.5"></i> Upload
-                        </button>
-                    </div>
-                `;
-
-                birdContainer.appendChild(row);
-
-                setTimeout(() => {
-                    const input = document.getElementById(`file-${birdDef.id}`);
-                    if (input) {
-                        input.addEventListener('change', (e) => {
-                            const file = e.target.files[0];
-                            if (file) {
-                                const reader = new FileReader();
-                                reader.onload = (event) => {
-                                    const img = new Image();
-                                    img.onload = () => {
-                                        birdDef.img = img;
-                                        document.getElementById(`preview-${birdDef.id}`).src = img.src;
-                                        updateShotsUI();
-                                        alertToast(`Updated ${birdDef.name}!`);
-                                    };
-                                    img.src = event.target.result;
-                                };
-                                reader.readAsDataURL(file);
-                            }
-                        });
-                    }
-                }, 0);
-            });
-
-            // Pigs List
-            const pigContainer = document.getElementById('pig-custom-list');
-            pigContainer.innerHTML = '';
-
-            Object.values(PIG_TYPES).forEach(pigDef => {
-                const row = document.createElement('div');
-                row.className = 'bg-slate-900/50 p-3 rounded-xl border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-3';
-
-                row.innerHTML = `
-                    <div class="flex items-center space-x-3">
-                        <img id="preview-pig-${pigDef.id}" src="${pigDef.img.src}" class="w-10 h-10 rounded-xl object-contain bg-slate-800 border border-slate-600 p-1">
-                        <div>
-                            <span class="text-xs font-bold text-white block">${pigDef.name}</span>
-                            <span class="text-[10px] text-slate-400">Health: ${pigDef.health} HP</span>
-                        </div>
-                    </div>
-                    <div class="flex space-x-2">
-                        <input type="file" id="file-pig-${pigDef.id}" accept="image/*" class="hidden">
-                        <button onclick="document.getElementById('file-pig-${pigDef.id}').click()" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition flex items-center">
-                            <i class="fa-solid fa-upload me-1.5"></i> Upload
-                        </button>
-                    </div>
-                `;
-
-                pigContainer.appendChild(row);
-
-                setTimeout(() => {
-                    const input = document.getElementById(`file-pig-${pigDef.id}`);
-                    if (input) {
-                        input.addEventListener('change', (e) => {
-                            const file = e.target.files[0];
-                            if (file) {
-                                const reader = new FileReader();
-                                reader.onload = (event) => {
-                                    const img = new Image();
-                                    img.onload = () => {
-                                        pigDef.img = img;
-                                        document.getElementById(`preview-pig-${pigDef.id}`).src = img.src;
-                                        alertToast(`Updated ${pigDef.name}!`);
-                                    };
-                                    img.src = event.target.result;
-                                };
-                                reader.readAsDataURL(file);
-                            }
-                        });
-                    }
-                }, 0);
-            });
-
-            document.getElementById('sun-preview').src = celestialImages.sun.src;
-            document.getElementById('moon-preview').src = celestialImages.moon.src;
-        }
-
-        // CELESTIAL UPLOAD LISTENERS
-        document.getElementById('sun-file-input').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        celestialImages.sun = img;
-                        document.getElementById('sun-preview').src = img.src;
-                        alertToast('Updated Sun Image!');
-                    };
-                    img.src = event.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        document.getElementById('moon-file-input').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        celestialImages.moon = img;
-                        document.getElementById('moon-preview').src = img.src;
-                        alertToast('Updated Moon Image!');
-                    };
-                    img.src = event.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        function alertToast(msg) {
-            const toast = document.createElement('div');
-            toast.className = 'fixed bottom-16 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-xs px-4 py-2 rounded-full shadow-lg z-50 animate-bounce';
-            toast.innerText = msg;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 1800);
-        }
-
-        document.getElementById('level-select').onchange = (e) => {
-            currentLevel = parseInt(e.target.value);
-            loadLevel(currentLevel);
-        };
-
-        document.getElementById('btn-reset').onclick = () => loadLevel(currentLevel);
-        document.getElementById('modal-btn-retry').onclick = () => loadLevel(currentLevel);
-
-        document.getElementById('btn-sound').onclick = () => {
-            sound.muted = !sound.muted;
-            document.getElementById('sound-icon').className = sound.muted ? 'fa-solid fa-volume-xmark' : 'fa-solid fa-volume-high';
-        };
-
-        const customModal = document.getElementById('custom-modal');
-        document.getElementById('btn-customize').onclick = () => {
-            populateCustomizationModal();
-            customModal.classList.remove('hidden');
-        };
-        document.getElementById('custom-close').onclick = () => customModal.classList.add('hidden');
-        document.getElementById('custom-apply').onclick = () => customModal.classList.add('hidden');
-
-        window.addEventListener('resize', resizeCanvas);
-
-        window.onload = () => {
-            resizeCanvas();
-            initEngine();
-            populateCustomizationModal();
-            loadLevel(currentLevel);
-            render();
-        };
-    </script>
+<body>
+<div id="app"></div>
+<script>
+const R=(a,b)=>a+Math.floor(Math.random()*(b-a+1)),P=a=>a[R(0,a.length-1)],ch=p=>Math.random()*100<p;
+const MODS=[
+{id:'armor',n:'Броня',d:'урон по ядру −30%',e:1},
+{id:'sight',n:'Прицел',d:'+15% к шансу попадания',e:1},
+{id:'scan',n:'Сканер',d:'показывает тип соседних комнат',e:1},
+{id:'shield',n:'Щит',d:'поглощает 3 урона за бой',e:2},
+{id:'repair',n:'Ремонтник',d:'+2 к ядру при переходе',e:2},
+{id:'grip',n:'Манипулятор',d:'+50% найденного металла',e:1},
+{id:'regen',n:'Ретег',d:'',e:1},{id:'cloak',n:'Невидимость',d:'',e:1},{id:'solar',n:'Солнечные панели',d:'',e:0}];
+const RN=['Шлюз','Склад','Реакторная','Лаборатория','Жилой блок','Ангар','Мастерская','Пультовая','Оранжерея'];
+const AGES={anc:{n:'Древняя',acc:[40,60],ec:[4,5],mc:[2,3],core:.8},old:{n:'Старая',acc:[60,75],ec:[3,4],mc:[1,2],core:.9},new:{n:'Новая',acc:[75,90],ec:[1,3],mc:[1,1],core:1}};
+const PW={ok:{n:'нормальное',res:1,sc:1,bot:0},em:{n:'аварийное',res:.8,sc:1,bot:7},off:{n:'нет электричества',res:.2,sc:.75,bot:15}};
+const SZ={s:{n:'Малая',r:[4,5]},m:{n:'Средняя',r:[6,7]},l:{n:'Большая',r:[8,9]}};
+const curAge=()=>G&&G.sts&&G.sts[G.st-1]?G.sts[G.st-1].age:'old';
+const cs=()=>G.sts[G.st-1];
+const gain=n=>{const p=PW[cs().pw];return Math.max(1,Math.round(n*(act('scan')?p.sc:p.res)))};
+const newW=(mx=9,ag,gen)=>{const A=AGES[ag||curAge()],t=P(['e','m']),dmg=R(3,mx);
+return{n:P(['Лазер','Рельса','Плазмоган','Дробовик','Пулемёт','Шокер','Игломёт'])+'-'+R(1,9),t,dmg,acc:R(A.acc[0],A.acc[1]),c:t=='e'?R(A.ec[0],A.ec[1]):R(A.mc[0],A.mc[1]),hp:R(5,12),gen:gen||lootGen()}};
+const newM=(ag,gen)=>{const m={...P(MODS)};m.e=m.id=='solar'?0:Math.max(1,m.e+R(-1,1));m.p=R(AGES[ag||curAge()].acc[0],AGES[ag||curAge()].acc[1]);m.hp=R(4,10);m.on=true;m.left=0;m.t=R(2,5);m.cd=0;m.gen=gen||lootGen();
+if(m.id=='regen'){m.a=R(2,6);m.e=0}if(m.id=='cloak'){m.e=R(3,8);m.q=R(15,40);m.b=R(10,35)}if(m.id=='armor')m.q=R(15,45);if(m.id=='shield')m.q=R(2,6);if(m.id=='repair')m.m=R(2,5);if(m.id=='solar')m.s=R(8,20);return m};
+const md=m=>({armor:'урон −'+m.q+'% на '+m.t+' ход.',sight:'+15% точность на '+m.t+' ход.',scan:'видно комнаты '+m.t+' ход.',shield:'поглощает '+m.q+' урона',repair:'чинит ядро на 4–8 за '+m.m+'🔩',grip:'+50% металла на '+m.t+' ход.',regen:'АВТО: +'+m.a+'⚡/ход на '+m.t+' ход.',cloak:'враг мажет чаще (−'+m.q+'%, пропуск хода врага '+m.b+'%) на '+m.t+' ход.',solar:'+'+m.s+'⚡ на поверхности'}[m.id]);
+const GEN={100:{w:1,m:2,hp:20,cost:10},200:{w:1,m:2,hp:25,cost:20},300:{w:2,m:3,hp:30,cost:30},400:{w:2,m:3,hp:35,cost:40},500:{w:2,m:4,hp:40,cost:50}};
+const gn=g=>'X-'+g;
+const pickGen=()=>{let x=R(1,100);for(const [g,w] of [[100,30],[200,28],[300,20],[400,14],[500,8]]){if(x<=w)return g;x-=w}return 100};
+const lootGen=()=>ch(50)&&G&&G.robot?G.robot.gen:pickGen();
+const PUNCH={n:'Удар манипулятором',t:'-',dmg:2,acc:75,c:0};
+let G;
+function genRooms(n){
+const rooms=[];
+for(let i=0;i<n;i++)rooms.push({name:i?RN[i%RN.length]+(i>8?' '+i:''):'Шлюз',adj:[],type:i?(ch(45)?'e':ch(55)?'l':'x'):'x',vis:!i,clear:!i,loot:[]});
+const link=(a,b)=>{if(a!=b&&!rooms[a].adj.includes(b)){rooms[a].adj.push(b);rooms[b].adj.push(a)}};
+for(let i=1;i<n;i++)link(i,R(0,i-1));
+for(let k=0;k<n/3;k++)link(R(0,n-1),R(0,n-1));
+const g=R(1,n-1);rooms[g].type='g';rooms[g].name='Дробилка';
+if(!rooms.some(x=>x.type=='l')){const c=[];rooms.forEach((x,i)=>{if(i&&x.type!='g')c.push(i)});rooms[P(c)].type='l'}
+P(rooms.filter(x=>x.type=='l')).gE=true;
+return rooms}
+const pickPw=a=>{const w={anc:[15,40],old:[40,40],new:[75,22]}[a],x=R(1,100);return x<=w[0]?'ok':x<=w[0]+w[1]?'em':'off'};
+function genStation(o={}){const sz=o.sz||P(['s','m','l']),age=o.age||P(['anc','old','new']),pw=o.pw||pickPw(age);
+return{name:P(['Арес','Фобос','Деймос','Олимп','Тарсис','Меридиан','Кратер','Гелиос','Утопия','Эллада'])+'-'+R(1,99),sz,age,pw,rooms:genRooms(R(SZ[sz].r[0],SZ[sz].r[1])),sent:false}}
+function fillMap(){const okN=()=>G.sts.filter(x=>!x.sent&&x.pw=='ok').length;
+while(okN()<2)G.sts.push(genStation({pw:'ok',age:P(['old','new'])}));
+while(G.sts.filter(x=>!x.sent).length<4)G.sts.push(genStation())}
+const stTag=s=>SZ[s.sz].n+' ('+s.rooms.length+' комн.) · '+AGES[s.age].n+' · питание: '+PW[s.pw].n;
+const pc=x=>Math.round(x*100);
+const stFx=s=>{const A=AGES[s.age],p=PW[s.pw];return '🔫 точность '+A.acc[0]+'–'+A.acc[1]+'% · ⚡'+A.ec[0]+'–'+A.ec[1]+'/выстрел · 👾 прочность врагов '+pc(A.core)+'%<br>📦 ресурсы '+pc(p.res)+'%'+(p.res<1?' (со сканером '+pc(p.sc)+'%)':'')+' · 🤖 боты '+(p.bot?'−'+p.bot+'% точности':'в полную силу')};
+const bodiesAt=k=>G.bodies.filter(b=>b.station===k).length;
+const mapCard=(s,k)=>'<div class="card" style="margin:6px 0"><b>№'+(k+1)+' «'+s.name+'»</b>'+(k+1==G.st?' · <span class="ok">текущая</span>':'')+(s.sent?' · <span class="ok">передана ✓</span>':'')+'<div class="mu">'+stTag(s)+' · исследовано '+s.rooms.filter(x=>x.clear).length+'/'+s.rooms.length+'</div><div class="mu">'+stFx(s)+'</div>'+(bodiesAt(k)?'<div class="mu">Тел: '+bodiesAt(k)+'</div>':'')+'<button class="p" onclick="drive('+k+')">'+(k+1==G.st?'Вернуться':'Лететь')+'</button></div>';
+
+function newGame(){
+const st0=genStation({sz:'s',age:'new',pw:'ok'}),rooms=st0.rooms,n=rooms.length;
+const gen=pickGen(),gi=GEN[gen],weps=[newW(9,'old',gen)];if(gi.w>1&&ch(50))weps.push(newW(9,'old',gen));
+G={robot:{gen,hp:gi.hp,max:gi.hp,weps,mods:[newM('old',gen),newM('old',gen)]},bodies:[],
+get hp(){return this.robot.hp},set hp(v){this.robot.hp=v},get max(){return this.robot.max},set max(v){this.robot.max=v},get weps(){return this.robot.weps},get mods(){return this.robot.mods},
+en:60,me:10,ant:true,st:1,rooms,cur:0,prev:0,fight:null,tg:'c',sh:0,log:['Вы активированы на Марсе в теле '+gn(gen)+'. Станция «'+st0.name+'»: '+n+' комнат. Исследуйте каждую и передайте данные антенной.'],over:null};G.sts=[st0];G.sent=0;fillMap();
+render()}
+
+const L=s=>{G.log.push(s)};
+const act=id=>G.mods.some(m=>m.id==id&&m.left>0);
+function tick(){G.mods.forEach(m=>{if(m.id=='regen'){if(m.left>0){G.en+=m.a;m.left--;if(!m.left)m.cd=3}else if(m.cd>0)m.cd--;else if(ch(m.p))m.left=m.t}
+else if(m.left>0)m.left--})}
+const cloaked=()=>G.mods.some(m=>m.id=='cloak'&&m.left>0);
+const cloakQ=()=>{const c=G.mods.find(m=>m.id=='cloak'&&m.left>0);return c?c.q:0};
+const cond=f=>f>.66?'цел':f>.33?'повреждён':'критично';
+const drain=()=>0;
+const spend=n=>{G.en=Math.max(0,G.en-n)};
+const st=r=>r.vis?(r.clear?'✓':'⚔'):(act('scan')?{e:'враг',l:'добыча',x:'пусто',g:'дробилка'}[r.type]:'?');
+
+function go(i){
+if(G.en<=0)return lose('Энергия на нуле. Вы обесточены.');
+spend(1+drain());tick();G.rep=null;G.prev=G.cur;G.cur=i;const r=G.rooms[i];r.vis=true;
+if(act('repair')&&G.hp<G.max){G.hp=Math.min(G.max,G.hp+2)}
+if(!r.clear){
+if(r.type=='e')return startFight(r);
+r.clear=true;
+if(r.type=='l'){let m=R(3,8);if(act('grip'))m=Math.round(m*1.5);m=gain(m);G.me+=m;let s='Вы обыскали «'+r.name+'»: +'+m+' металла';
+const x=r.gE?1:R(1,3);if(x==1){const e=gain(R(10,20));G.en+=e;s+=', +'+e+' энергии'}
+else if(x==2){r.loot.push(ch(50)?{k:'w',v:newW()}:{k:'m',v:newM()});s+=', найдена деталь'}
+L(s+'.')}else L(r.type=='g'?'Вы нашли дробилку: здесь разбор даёт полный металл.':'«'+r.name+'»: пусто.')}
+else L('Вы в комнате «'+r.name+'».');
+if(G.en<=0)L('Энергия на нуле!');render()}
+
+// ANGRY BIRDS INTEGRATION FIX
+let abEngine, abWorld, abAnim=null;
+function startFight(r){
+const e={n:P(['Дрон-охранник','Шагоход','Патрульный','Сборщик','Ржавый страж'])+'-'+R(10,99),core:Math.round(R(16,30)*AGES[curAge()].core),fx:{},sh:0,en:R(6,20),me:R(3,10),parts:[],gen:pickGen()};e.max=e.core;
+const w=newW(7,undefined,e.gen);e.parts.push({t:'w',v:w,hp:w.hp,max:w.hp});
+for(let k=R(0,2);k>0;k--){const v=newM(undefined,e.gen);e.parts.push({t:'m',v,hp:v.hp,max:v.hp})}
+G.fight={e,r};G.tg='c';L('Бой! '+e.n+' преграждает путь (Оттяните и запустите робота).');
+render();
+initABPhysics(e);
+}
+
+function initABPhysics(enemy){
+setTimeout(()=>{
+const canvas=document.getElementById('ab-canvas');
+if(!canvas)return;
+const ctx=canvas.getContext('2d');
+const {Engine,World,Bodies,Body,Vector,Events}=Matter;
+abEngine=Engine.create();
+abWorld=abEngine.world;
+abWorld.gravity.y=0.8;
+
+const ground=Bodies.rectangle(250,285,500,30,{isStatic:true,friction:0.9});
+World.add(abWorld,ground);
+
+// Enemy shelter blocks
+const b1=Bodies.rectangle(360,240,16,60,{density:0.003,friction:0.8});
+const b2=Bodies.rectangle(430,240,16,60,{density:0.003,friction:0.8});
+const roof=Bodies.rectangle(395,200,90,14,{density:0.002,friction:0.8});
+const pig=Bodies.circle(395,170,18,{density:0.002,restitution:0.4,label:'pig'});
+World.add(abWorld,[b1,b2,roof,pig]);
+
+// Sling bird setup
+const anchor={x:80,y:210};
+let bird=Bodies.circle(anchor.x,anchor.y,16,{density:0.004,frictionAir:0.005,restitution:0.3});
+Body.setStatic(bird,true);
+World.add(abWorld,bird);
+
+let slingFired=false, isDragging=false;
+let dragPos={x:anchor.x,y:anchor.y};
+
+const getPos=e=>{
+const rect=canvas.getBoundingClientRect();
+const clientX=e.touches?e.touches[0].clientX:e.clientX;
+const clientY=e.touches?e.touches[0].clientY:e.clientY;
+return{x:clientX-rect.left,y:clientY-rect.top};
+};
+
+const onDown=e=>{
+if(slingFired)return;
+const p=getPos(e);
+if(Math.hypot(p.x-bird.position.x,p.y-bird.position.y)<35){
+isDragging=true;
+}
+};
+
+const onMove=e=>{
+if(!isDragging||slingFired)return;
+const p=getPos(e);
+const dx=p.x-anchor.x, dy=p.y-anchor.y;
+const dist=Math.hypot(dx,dy);
+const maxDist=55;
+if(dist>maxDist){
+dragPos.x=anchor.x+(dx/dist)*maxDist;
+dragPos.y=anchor.y+(dy/dist)*maxDist;
+}else{
+dragPos.x=p.x;
+dragPos.y=p.y;
+}
+Body.setPosition(bird,dragPos);
+};
+
+const onUp=e=>{
+if(!isDragging||slingFired)return;
+isDragging=false;
+slingFired=true;
+Body.setStatic(bird,false);
+const launchForce=Vector.mult(Vector.sub(anchor,bird.position),0.012);
+Body.applyForce(bird,bird.position,launchForce);
+};
+
+canvas.addEventListener('mousedown',onDown);
+canvas.addEventListener('mousemove',onMove);
+window.addEventListener('mouseup',onUp);
+canvas.addEventListener('touchstart',onDown);
+canvas.addEventListener('touchmove',onMove);
+window.addEventListener('touchend',onUp);
+
+function loop(){
+if(!abEngine)return;
+Engine.update(abEngine,1000/60);
+ctx.clearRect(0,0,500,300);
+
+// Draw ground
+ctx.fillStyle='#17402a';ctx.fillRect(0,270,500,30);
+
+// Draw slingshot band
+if(!slingFired){
+ctx.strokeStyle='#2fe06a';ctx.lineWidth=4;
+ctx.beginPath();ctx.moveTo(anchor.x,anchor.y);
+ctx.lineTo(bird.position.x,bird.position.y);ctx.stroke();
+}
+
+// Draw blocks
+[b1,b2,roof].forEach(b=>{
+ctx.save();ctx.translate(b.position.x,b.position.y);ctx.rotate(b.angle);
+ctx.fillStyle='#6fa381';ctx.strokeStyle='#17402a';ctx.lineWidth=2;
+const w=b.bounds.max.x-b.bounds.min.x, h=b.bounds.max.y-b.bounds.min.y;
+ctx.fillRect(-w/2,-h/2,w,h);ctx.strokeRect(-w/2,-h/2,w,h);
+ctx.restore();
+});
+
+// Draw enemy pig
+ctx.fillStyle='#ff5a5a';ctx.beginPath();
+ctx.arc(pig.position.x,pig.position.y,18,0,Math.PI*2);ctx.fill();
+ctx.fillStyle='#000';ctx.fillText('👾',pig.position.x-7,pig.position.y+4);
+
+// Draw bird
+ctx.fillStyle='#2fe06a';ctx.beginPath();
+ctx.arc(bird.position.x,bird.position.y,16,0,Math.PI*2);ctx.fill();
+ctx.fillStyle='#000';ctx.fillText('🤖',bird.position.x-7,bird.position.y+4);
+
+// Win condition
+if(pig.position.y>260||pig.speed>7){
+setTimeout(()=>{win();},600);
+return;
+}
+
+abAnim=requestAnimationFrame(loop);
+}
+loop();
+},100);
+}
+
+const chance=w=>Math.max(5,Math.min(95,w.acc+(act('sight')?15:0)-(G.tg!='c'?10:0)-(G.fight&&G.fight.e.fx.cloak?G.fight.e.fx.cloak.q:0)));
+const canFire=w=>w.t=='e'?G.en>=w.c:w.t=='m'?G.me>=w.c:true;
+
+function round(){
+spend(drain());
+const e=G.fight.e;
+if(ch(50)){
+let d=R(2,5);
+G.hp-=d;
+L('Враг контратакует: −'+d+' ядру.');
+if(G.hp<=0)return lose('Ядро уничтожено.');
+}
+render();
+}
+
+function win(){
+if(abAnim)cancelAnimationFrame(abAnim);
+abEngine=null;
+const {e,r}=G.fight;G.fight=null;r.clear=true;
+let m=R(4,10);if(act('grip'))m=Math.round(m*1.5);m=gain(m);G.me+=m;
+L('Победа в физ. дуэли! '+e.n+' уничтожен, +'+m+' металла.');render()}
+
+function flee(){
+if(abAnim)cancelAnimationFrame(abAnim);
+abEngine=null;
+spend(1+drain());
+if(ch(50)){G.cur=G.prev;G.fight=null;L('Вы отступили.');render()}
+else{L('Отступить не удалось.');round()}}
+
+function lose(s){if(abAnim)cancelAnimationFrame(abAnim);G.over=s;G.fight=null;render()}
+const inG=()=>G.rooms[G.cur].type=='g',gv=b=>Math.round(b*(inG()?1:.4)),val=it=>it.k=='body'?gv(5)+gv(6):gv(it.k=='m'?5:6);
+function repl(j){const r=G.rooms[G.cur],it=r.loot[G.rep];if(!it)return;const arr=it.k=='w'?G.weps:G.mods,old=arr[j];arr[j]=it.v;r.loot[G.rep]={k:it.k,v:old};G.rep=null;L('Заменено. Старая деталь лежит в комнате.');render()}
+function take(i){G.rep=null;const r=G.rooms[G.cur],it=r.loot[i],ro=G.robot;
+if(it.k=='body'){const b=it.v,c=GEN[b.gen].cost;
+if(b.coreDead&&G.en<c){L('Нужно '+c+'⚡ для перезапуска ядра.');return render()}
+if(b.coreDead){spend(c);b.coreDead=false;L('Ядро перезапущено (−'+c+'⚡).')}
+G.bodies.push({gen:ro.gen,hp:ro.hp,max:ro.max,weps:ro.weps,mods:ro.mods,room:G.cur,station:G.st-1});
+G.robot={gen:b.gen,hp:b.hp,max:b.max,weps:b.weps,mods:b.mods};G.sh=0;
+r.loot.splice(i,1);L('Вы заняли тело '+gn(b.gen)+'. Прежнее тело '+gn(ro.gen)+' осталось здесь.');return render()}
+if(it.k!='a'&&it.v.gen!==ro.gen){L('Не подходит к модели '+gn(ro.gen)+'.');return render()}
+if(it.k=='w'){if(G.weps.length>=GEN[ro.gen].w){G.rep=i;return render()}G.weps.push(it.v)}
+else if(it.k=='m'){if(G.mods.length>=GEN[ro.gen].m){G.rep=i;return render()}G.mods.push(it.v)}
+else{if(G.ant)return L('Ваша антенна цела — только в дробилку.'),render();G.ant=true;L('Антенна заменена.')}
+r.loot.splice(i,1);render()}
+function swapBody(i){const b=G.bodies[i],ro=G.robot;if(!b||G.fight)return;G.rep=null;
+G.bodies.splice(i,1);G.bodies.push({gen:ro.gen,hp:ro.hp,max:ro.max,weps:ro.weps,mods:ro.mods,room:G.cur,station:G.st-1});
+G.robot={gen:b.gen,hp:b.hp,max:b.max,weps:b.weps,mods:b.mods};G.sh=0;
+L('Вы пересели в тело '+gn(b.gen)+'. Тело '+gn(ro.gen)+' осталось здесь.');render()}
+function grind(i){const r=G.rooms[G.cur],it=r.loot[i];G.rep=null;
+if(it.k=='body'){const b=it.v,v=val(it);G.me+=v;r.loot.splice(i,1);b.weps.forEach(w=>r.loot.push({k:'w',v:w}));b.mods.forEach(m=>r.loot.push({k:'m',v:m}));
+L((inG()?'Дробилка':'Вручную')+': тело '+gn(b.gen)+' разобрано, +'+v+' металла'+(b.weps.length+b.mods.length?'; детали остались на полу.':'.'));return render()}
+G.me+=val(it);L((inG()?'Дробилка':'Вручную')+': +'+val(it)+' металла.');r.loot.splice(i,1);render()}
+function grindOwn(t,i){const a=t=='w'?G.weps:G.mods,v=gv(t=='w'?6:5);a.splice(i,1);G.me+=v;L((inG()?'Дробилка':'Вручную')+': +'+v+' металла.');render()}
+function repair(){if(G.me>=12){G.me-=12;G.ant=true;L('Антенна починена (−12 металла).');render()}}
+function useMod(i){const m=G.mods[i];if(m.id=='repair'&&G.me<m.m)return L('Нужно '+m.m+'🔩 для ремонта.'),render();if(G.en<m.e)return L('Не хватает энергии для «'+m.n+'».'),render();spend(m.e);
+if(!ch(m.p)){L(m.n+': сбой, −'+m.e+'⚡.');return render()}
+if(m.id=='shield'){G.sh=m.q;L('Щит включён (−'+m.e+'⚡).')}else if(m.id=='repair'){const h=R(4,8);G.hp=Math.min(G.max,G.hp+h);G.me-=m.m;L('Ремонтник: +'+h+' ядру (−'+m.e+'⚡, −'+m.m+'🔩).')}else{m.left=m.t;L(m.n+' включён (−'+m.e+'⚡).')}render()}
+function sun(i){const m=G.mods[i];if(m.used)return;m.used=true;if(ch(m.p)){G.en+=m.s;L('Панели: +'+m.s+'⚡.')}else L('Панели не сработали.');render()}
+function runAway(){if(G.en<20)return;spend(20);G.cur=G.prev;G.fight=null;L('Побег из комнаты (−20⚡).');render()}
+function surf(){if(G.en<10)return;spend(10);G.fight=null;G.surf=true;G.mods.forEach(m=>m.used=false);L('Вы вышли на поверхность (−10⚡).');render()}
+function drive(k){G.surf=false;G.rep=null;G.tg='c';G.st=k+1;const s=G.sts[k];G.rooms=s.rooms;G.cur=G.prev=0;G.sh=0;L('Вы прибыли на станцию №'+G.st+' «'+s.name+'» ('+s.rooms.length+' комнат).');render()}
+function report(s){const n=s.rooms.length,en=s.rooms.filter(x=>x.type=='e').length,q=en/(n-1),lv=q<.25?'низкая':q<.5?'средняя':'высокая';s.q=q;L('Отчёт, станция №'+G.st+': комнат '+n+', охранных систем устранено '+en+', угроза для людей — '+lv+'.');if(G.sent>=3)L('Сводка по '+G.sent+' станциям: '+verdict()+'.')}
+function verdict(){const a=G.sts.filter(s=>s.sent),m=a.reduce((t,s)=>t+s.q,0)/a.length;return m<.25?'возвращаться безопасно':m<.5?'нужна дополнительная проверка':'возвращаться опасно'}
+function send(){const s=G.sts[G.st-1];s.sent=true;G.sent++;fillMap();report(s);L('Данные станции №'+G.st+' переданы на Землю! Всего станций: '+G.sent+'. Можно лететь дальше.');render()}
+const bodyStr=b=>'Тело '+gn(b.gen)+' (HP '+b.hp+'/'+b.max+(b.coreDead!=null?', ядро '+(b.coreDead?'мёртвое':'живое'):'')+')';
+const bodyEq=b=>'<div class="mu">'+(b.weps.length?'🔫 '+b.weps.map(w=>w.n+' '+w.dmg+'/'+w.acc+'%').join(', '):'без оружия')+' · ⚙ '+(b.mods.length?b.mods.map(m=>m.n).join(', '):'без модулей')+(b.coreDead?' · перезапуск ядра '+GEN[b.gen].cost+'⚡':'')+'</div>';
+const robLine=()=>{const ro=G.robot,gi=GEN[ro.gen];return gn(ro.gen)+' · HP '+ro.hp+'/'+ro.max+' · оружие '+ro.weps.length+'/'+gi.w+' · модули '+ro.mods.length+'/'+gi.m};
+const wd=w=>w.n+' · '+w.dmg+' урона · '+(w.t=='e'?'⚡':'🔩')+w.c;
+const it2s=it=>it.k=='a'?'Антенна':it.k=='body'?'<b>'+bodyStr(it.v)+'</b>'+bodyEq(it.v):it.k=='w'?'Оружие '+gn(it.v.gen)+': '+wd(it.v)+' · '+it.v.acc+'% · HP '+it.v.hp:'Модуль '+gn(it.v.gen)+': '+it.v.n+' ('+md(it.v)+', −'+it.v.e+'⚡, '+it.v.p+'%, HP '+it.v.hp+')';
+
+function render(){
+const A=document.getElementById('app');
+if(G.over){A.innerHTML='<div class="card"><h3>'+(G.over=='win'?'Миссия выполнена':'Конец')+'</h3><p>'+(G.over=='win'?'Все комнаты исследованы, данные переданы на Землю.':G.over)+'</p><button class="p" onclick="newGame()">Новая станция</button></div>';return}
+if(G.surf){A.innerHTML='<div class="card"><h3>Поверхность Марса</h3><div>⚡ '+G.en+' · 🔩 '+G.me+'</div>'+(G.sent?'<div class="mu">Передано станций: '+G.sent+' · оценка: '+verdict()+'</div>':'')+G.mods.map((m,i)=>m.id=='solar'?'<div>'+m.n+' ('+md(m)+', '+m.p+'%) <button class="p" '+(m.used?'disabled':'')+' onclick="sun('+i+')">Развернуть</button></div>':'').join('')+''+'<h3 style="margin-top:8px">Карта станций</h3>'+G.sts.map(mapCard).join('')+'</div><div class="card log">'+G.log.slice(-4).map(s=>'<div>'+s+'</div>').join('')+'</div>';return}
+const rs=G.rooms,r=rs[G.cur],done=rs.filter(x=>x.clear).length,F=G.fight;
+let h='<div class="card"><div class="st"><div><b class="'+(G.hp<10?'bad':'')+'">'+G.hp+'/'+G.max+'</b><span>ядро</span></div><div><b>'+G.en+'</b><span>⚡ энергия</span></div><div><b>'+G.me+'</b><span>🔩 металл</span></div><div><b class="'+(G.ant?'ok':'bad')+'">'+(G.ant?'ОК':'сломана')+'</b><span>антенна</span></div></div><div class="mu" style="text-align:center;margin-top:6px">'+robLine()+'</div></div>';
+h+='<div class="card"><h3>Станция №'+G.st+(G.sts[G.st-1].sent?' ✓':'')+' · '+r.name+' · исследовано '+done+'/'+rs.length+'</h3><div class="mu">'+stTag(G.sts[G.st-1])+'</div>';
+if(F){const e=F.e;
+h+='<div><b>'+e.n+'</b> ['+gn(e.gen)+'] · Запустите робота из рогатки!</div>';
+h+='<canvas id="ab-canvas" width="500" height="300"></canvas>';
+h+='<div><button onclick="flee()">Отступить (50%)</button></div>';
+}
+else{
+h+='<div class="mu">Выходы:</div>';r.adj.forEach(i=>{const x=rs[i];h+='<button onclick="go('+i+')">'+x.name+' ['+st(x)+']</button>'});
+if(r.loot.length){h+='<div class="mu">Добыча:</div>';r.loot.forEach((it,i)=>{const bd=it.k=='body';h+='<div>'+it2s(it)+'<br><button '+(bd?'class="p" ':'')+'onclick="take('+i+')">'+(bd?'Занять тело':'Взять')+'</button><button onclick="grind('+i+')">'+(bd?'Разобрать':inG()?'В дробилку':'Сломать')+' (+'+val(it)+')</button></div>'})}
+{const here=G.bodies.map((b,i)=>b.room===G.cur&&b.station===G.st-1?i:-1).filter(i=>i>=0);
+if(here.length){h+='<div class="mu">Оставленные тела:</div>';here.forEach(i=>{const b=G.bodies[i];h+='<div>'+bodyStr(b)+bodyEq(b)+'<button class="p" onclick="swapBody('+i+')">Пересесть в тело '+gn(b.gen)+'</button></div>'})}}
+if(G.rep!=null&&r.loot[G.rep]){const it=r.loot[G.rep],arr=it.k=='w'?G.weps:G.mods;h+='<div class="mu" style="margin-top:6px">Слоты полны. Новое: '+it2s(it)+'<br>Что заменить?</div>';arr.forEach((o,j)=>{h+='<div>'+(it.k=='w'?'🔫 ['+gn(o.gen)+'] '+wd(o)+' · '+o.acc+'% · HP '+o.hp:'⚙ '+o.n+' — '+md(o)+' (−'+o.e+'⚡, '+o.p+'%, HP '+o.hp+')')+'<br><button class="p" onclick="repl('+j+')">Заменить это</button></div>'});h+='<button onclick="G.rep=null;render()">Отмена</button>'}
+h+='<div style="margin-top:6px">';
+if(!G.ant)h+='<button onclick="repair()" '+(G.me>=12?'':'disabled')+'>Починить антенну (12 🔩)</button>';
+h+='<button class="p" onclick="send()" '+(done==rs.length&&G.ant&&!G.sts[G.st-1].sent?'':'disabled')+'>Передать данные</button>'+(G.cur==0?'<button onclick="surf()" '+(G.en>=10?'':'disabled')+'>Выйти на поверхность (10⚡)</button>':'')+'</div>'}
+h+='</div>';
+h+='<div class="card"><h3>Снаряжение</h3>';
+G.weps.forEach((w,i)=>{h+='<div>🔫 ['+gn(w.gen)+'] '+wd(w)+' · '+w.acc+'% · HP '+w.hp+' '+(F?'':'<button onclick="grindOwn(\'w\','+i+')">'+(inG()?'в дробилку':'сломать')+'</button>')+'</div>'});
+G.mods.forEach((m,i)=>{h+='<div>⚙ ['+gn(m.gen)+'] <b>'+m.n+'</b> — '+md(m)+' (−'+m.e+'⚡, срабатывает '+m.p+'%, HP '+m.hp+')'+(m.left>0?' ▶'+m.left:'')+' '+(m.id=='regen'||m.id=='solar'?'':'<button class="p" onclick="useMod('+i+')">Вкл</button>')+(F?'':'<button onclick="grindOwn(\'m\','+i+')">'+(inG()?'в дробилку':'сломать')+'</button>')+'</div>'});
+h+='<div class="mu">'+gn(G.robot.gen)+' · оружие '+G.weps.length+'/'+GEN[G.robot.gen].w+' · модули '+G.mods.length+'/'+GEN[G.robot.gen].m+'</div></div>';
+h+='<div class="card log"><h3>Журнал</h3>'+G.log.slice(-7).map(s=>'<div>'+s+'</div>').join('')+'</div>';
+A.innerHTML=h}
+newGame();
+</script>
 </body>
 </html>
