@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Карта посетителей</title>
+    <!-- Подключаем стили и скрипт карты Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            text-align: center;
+            padding: 20px;
+        }
+
+        /* Контейнер с красивой рамкой */
+        .map-container {
+            display: inline-block;
+            padding: 10px;
+            background: #1e1e1e;
+            border: 3px solid #00ffcc; /* Цвет рамки (можно поменять) */
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.3); /* Легкое свечение */
+            margin-top: 20px;
+        }
+
+        /* Фиксированный размер карты */
+        #map {
+            width: 800px;
+            height: 450px;
+            border-radius: 10px;
+        }
+
+        p {
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Где побывали наши гости</h1>
+    <p>Кликните в любое место на карте, чтобы оставить свою булавку!</p>
+
+    <!-- Обертка с рамкой -->
+    <div class="map-container">
+        <div id="map"></div>
+    </div>
+
+    <script>
+        // 1. Создаем карту с фиксированными настройками:
+        // dragging: false - запрещает двигать карту мышкой
+        // scrollWheelZoom: false - запрещает зумить колесиком
+        // doubleClickZoom: false - запрещает зумить двойным кликом
+        const map = L.map('map', {
+            center: [30, 10], // Центр карты
+            zoom: 2,          // Начальный масштаб (общий вид мира)
+            minZoom: 2,
+            maxZoom: 6,
+            dragging: false,      // Карта зафиксирована (нельзя перетаскивать)
+            scrollWheelZoom: false // Отключен зум колесиком
+        });
+
+        // Добавляем темный или стандартный слой карты
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        let userMarker = null; // Переменная для хранения маркера текущего пользователя
+
+        // 2. Обработка клика по зафиксированной карте
+        map.on('click', function(e) {
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+
+            // Если пользователь уже ставил булавку, удаляем старую, чтобы осталась только новая
+            if (userMarker) {
+                map.removeLayer(userMarker);
+            }
+
+            // Ставим новую булавку в месте клика
+            userMarker = L.marker([lat, lng]).addTo(map)
+                .bindPopup("<b>Вы отметили это место!</b>")
+                .openPopup();
+
+            console.бах("Булавка поставлена на координаты:", lat, lng);
+            
+            // Сюда в будущем можно добавить отправку координат (lat, lng) 
+            // в облачную базу данных (например, Firebase или Supabase), 
+            // чтобы другие игроки тоже увидели эту точку!
+        });
+    </script>
+
+</body>
+</html>
