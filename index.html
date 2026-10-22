@@ -1,97 +1,2052 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Карта посетителей</title>
-    <!-- Подключаем стили и скрипт карты Leaflet -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Angry Birds - Dynamic Ground & Metal Edition</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Matter.js Physics Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #121212;
-            color: #ffffff;
-            text-align: center;
-            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
         }
-
-        /* Контейнер с красивой рамкой */
-        .map-container {
-            display: inline-block;
-            padding: 10px;
-            background: #1e1e1e;
-            border: 3px solid #00ffcc; /* Цвет рамки (можно поменять) */
-            border-radius: 15px;
-            box-shadow: 0 0 20px rgba(0, 255, 204, 0.3); /* Легкое свечение */
-            margin-top: 20px;
+        canvas {
+            display: block;
+            touch-action: none;
         }
-
-        /* Фиксированный размер карты */
-        #map {
-            width: 800px;
-            height: 450px;
-            border-radius: 10px;
+        ::-webkit-scrollbar {
+            width: 6px;
         }
-
-        p {
-            color: #aaa;
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
         }
     </style>
 </head>
-<body>
+<body class="bg-slate-950 text-white min-h-screen flex flex-col justify-between overflow-hidden">
 
-    <h1>Где побывали наши гости</h1>
-    <p>Кликните в любое место на карте, чтобы оставить свою булавку!</p>
+    <!-- TOP BAR / HEADER -->
+    <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-700/80 px-4 py-2.5 flex justify-between items-center z-10 shadow-lg">
+        <div class="flex items-center space-x-3">
+            <div class="bg-gradient-to-tr from-red-600 via-amber-500 to-yellow-400 text-white p-2 rounded-xl shadow-lg flex items-center justify-center font-black text-xl w-10 h-10">
+                <i class="fa-solid fa-shield-halved animate-pulse"></i>
+            </div>
+            <div>
+                <h1 class="text-lg md:text-xl font-black tracking-wide bg-gradient-to-r from-red-400 via-amber-300 to-yellow-400 bg-clip-text text-transparent">
+                    DEFORMABLE GROUND EDITION
+                </h1>
+                <p class="text-[10px] md:text-xs text-slate-400">Metal Blocks • Indestructible Balloons • Live Orbit</p>
+            </div>
+        </div>
 
-    <!-- Обертка с рамкой -->
-    <div class="map-container">
-        <div id="map"></div>
-    </div>
+        <!-- GAME STATS & CONTROLS -->
+        <div class="flex items-center space-x-2 md:space-x-5">
+            <div class="text-center">
+                <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Level</span>
+                <select id="level-select" class="bg-slate-800 text-amber-400 font-black text-xs md:text-sm rounded-lg px-2 py-1 border border-slate-600 focus:outline-none">
+                    <option value="1">Lvl 1 - Outpost</option>
+                    <option value="2">Lvl 2 - Steel Citadel</option>
+                    <option value="3">Lvl 3 - Bunker</option>
+                    <option value="4">Lvl 4 - Sky Fortress</option>
+                    <option value="5">Lvl 5 - Mega Bastion</option>
+                    <option value="6">Lvl 6 - Titanium Fortress</option>
+                    <option value="7">Lvl 7 - 👑 BOSS BATTLE</option>
+                </select>
+            </div>
+            <div class="text-center">
+                <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Score</span>
+                <span id="score-display" class="text-lg md:text-xl font-black text-emerald-400">0</span>
+            </div>
+            <div class="text-center hidden sm:block">
+                <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Ammo</span>
+                <div id="shots-container" class="flex space-x-1 justify-center mt-0.5">
+                    <!-- Bird queue -->
+                </div>
+            </div>
+            
+            <div class="flex space-x-1.5">
+                <button id="btn-sound" class="w-9 h-9 bg-slate-800 hover:bg-slate-700 rounded-lg flex items-center justify-center text-slate-200 transition border border-slate-700">
+                    <i id="sound-icon" class="fa-solid fa-volume-high"></i>
+                </button>
+                <button id="btn-reset" class="w-9 h-9 bg-amber-600 hover:bg-amber-500 rounded-lg flex items-center justify-center text-white transition shadow-md" title="Reset Level">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+                <button id="btn-customize" class="px-2.5 h-9 bg-indigo-600 hover:bg-indigo-500 rounded-lg flex items-center justify-center text-white font-bold text-xs transition shadow-md space-x-1.5 border border-indigo-400/30">
+                    <i class="fa-solid fa-paint-brush"></i>
+                    <span class="hidden md:inline">Customizer</span>
+                </button>
+            </div>
+        </div>
+    </header>
 
+    <!-- MAIN GAME CANVAS CONTAINER -->
+    <main class="relative flex-1 overflow-hidden flex items-center justify-center">
+        <!-- Canvas Element -->
+        <canvas id="game-canvas"></canvas>
+
+        <!-- ACTIVE BIRD ABILITY OVERLAY PROMPT -->
+        <div id="ability-prompt" class="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/85 backdrop-blur-md text-amber-300 border border-amber-500/40 px-4 py-2 rounded-full text-xs md:text-sm font-bold shadow-lg pointer-events-none transition-all duration-300 opacity-0 transform -translate-y-2 flex items-center space-x-2">
+            <i class="fa-solid fa-bolt text-amber-400 animate-pulse"></i>
+            <span id="ability-text">Click screen mid-flight to trigger Ability!</span>
+        </div>
+
+        <!-- DAY / NIGHT TIMER BADGE -->
+        <div id="time-badge" class="absolute top-4 left-4 bg-slate-900/80 backdrop-blur-md border border-slate-700 text-amber-300 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-2 shadow-lg pointer-events-none">
+            <i id="time-badge-icon" class="fa-solid fa-sun text-amber-400"></i>
+            <span id="time-badge-text">Daytime</span>
+        </div>
+
+        <!-- GAME OVER / VICTORY OVERLAY MODAL -->
+        <div id="status-modal" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-20 hidden p-4">
+            <div class="bg-slate-800 border border-slate-700 p-6 md:p-8 rounded-2xl max-w-md w-full text-center shadow-2xl">
+                <div id="modal-icon" class="text-6xl mb-3 text-amber-400">
+                    <i class="fa-solid fa-trophy"></i>
+                </div>
+                <h2 id="modal-title" class="text-3xl font-black text-white mb-1">LEVEL CLEAR!</h2>
+                <p id="modal-subtitle" class="text-slate-400 text-sm mb-4">You destroyed all targets!</p>
+                
+                <!-- Star Rating Display -->
+                <div id="star-rating" class="flex justify-center space-x-2 text-3xl mb-6 text-amber-400">
+                    <i class="fa-solid fa-star"></i>
+                    <i class="fa-solid fa-star"></i>
+                    <i class="fa-solid fa-star"></i>
+                </div>
+
+                <div class="bg-slate-900/60 rounded-xl p-4 mb-6 text-left space-y-2 border border-slate-700/50">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-400">Destruction Score:</span>
+                        <span id="modal-destr-score" class="font-bold text-white">0</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-400">Unused Birds Bonus:</span>
+                        <span id="modal-bonus-score" class="font-bold text-emerald-400">+0</span>
+                    </div>
+                    <hr class="border-slate-700 my-1">
+                    <div class="flex justify-between text-base font-bold">
+                        <span class="text-slate-200">Total Score:</span>
+                        <span id="modal-total-score" class="text-amber-400">0</span>
+                    </div>
+                </div>
+
+                <div class="flex space-x-3">
+                    <button id="modal-btn-retry" class="flex-1 py-3 bg-slate-700 hover:bg-slate-600 font-bold rounded-xl text-white transition">
+                        <i class="fa-solid fa-rotate-right me-1"></i> Retry
+                    </button>
+                    <button id="modal-btn-next" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl text-white transition shadow-lg">
+                        Next Level <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CUSTOMIZATION DRAWER/MODAL -->
+        <div id="custom-modal" class="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-30 hidden p-4">
+            <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+                <!-- Modal Header -->
+                <div class="p-4 bg-slate-800/90 border-b border-slate-700 flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-white flex items-center">
+                        <i class="fa-solid fa-paint-brush text-indigo-400 me-2"></i> Customize Avatars, PIGS & Sun/Moon
+                    </h3>
+                    <button id="custom-close" class="text-slate-400 hover:text-white p-2 text-xl">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="p-6 overflow-y-auto space-y-6">
+                    <!-- CELESTIAL CUSTOMIZATION (SUN & MOON) -->
+                    <div class="bg-slate-900/60 p-4 rounded-xl border border-amber-500/30">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-amber-400 mb-3 flex items-center">
+                            <i class="fa-solid fa-sun me-1.5"></i> Celestial Bodies (Sun & Moon with Ray Effects)
+                        </h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Sun -->
+                            <div class="flex items-center justify-between bg-slate-800 p-3 rounded-lg border border-slate-700">
+                                <div class="flex items-center space-x-3">
+                                    <img id="sun-preview" class="w-10 h-10 rounded-full object-contain bg-amber-500/20 border border-amber-400 p-1">
+                                    <div>
+                                        <span class="text-xs font-bold text-white block">Sun (Day)</span>
+                                        <span class="text-[10px] text-slate-400">Golden rays tint</span>
+                                    </div>
+                                </div>
+                                <input type="file" id="sun-file-input" accept="image/*" class="hidden">
+                                <button onclick="document.getElementById('sun-file-input').click()" class="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg transition">
+                                    Upload
+                                </button>
+                            </div>
+                            <!-- Moon -->
+                            <div class="flex items-center justify-between bg-slate-800 p-3 rounded-lg border border-slate-700">
+                                <div class="flex items-center space-x-3">
+                                    <img id="moon-preview" class="w-10 h-10 rounded-full object-contain bg-sky-500/20 border border-sky-400 p-1">
+                                    <div>
+                                        <span class="text-xs font-bold text-white block">Moon (Night)</span>
+                                        <span class="text-[10px] text-slate-400">Cyan halo tint</span>
+                                    </div>
+                                </div>
+                                <input type="file" id="moon-file-input" accept="image/*" class="hidden">
+                                <button onclick="document.getElementById('moon-file-input').click()" class="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-lg transition">
+                                    Upload
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BIRD TYPES LIST -->
+                    <div>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Bird Projectiles</h4>
+                        <div id="bird-custom-list" class="space-y-3">
+                            <!-- Dynamic bird type rows -->
+                        </div>
+                    </div>
+
+                    <!-- PIG VARIATION CUSTOMIZATION -->
+                    <div>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-3">Pig Targets & Boss</h4>
+                        <div id="pig-custom-list" class="space-y-3">
+                            <!-- Dynamic pig type rows -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="p-4 bg-slate-800/90 border-t border-slate-700 text-right">
+                    <button id="custom-apply" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 font-bold rounded-xl text-white text-sm transition">
+                        Save & Play
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER INSTRUCTIONS -->
+    <footer class="bg-slate-900 border-t border-slate-800 text-slate-400 text-xs p-2 text-center flex justify-between px-4 z-10">
+        <span><i class="fa-solid fa-hand-pointer me-1 text-amber-400"></i> Pull bird back & release. Click mid-flight for abilities! Dents ground!</span>
+        <span class="hidden sm:inline">Matter.js Physics & Dynamic Terrain Engine</span>
+    </footer>
+
+    <!-- GAME LOGIC SCRIPT -->
     <script>
-        // 1. Создаем карту с фиксированными настройками:
-        // dragging: false - запрещает двигать карту мышкой
-        // scrollWheelZoom: false - запрещает зумить колесиком
-        // doubleClickZoom: false - запрещает зумить двойным кликом
-        const map = L.map('map', {
-            center: [30, 10], // Центр карты
-            zoom: 2,          // Начальный масштаб (общий вид мира)
-            minZoom: 2,
-            maxZoom: 6,
-            dragging: false,      // Карта зафиксирована (нельзя перетаскивать)
-            scrollWheelZoom: false // Отключен зум колесиком
-        });
-
-        // Добавляем темный или стандартный слой карты
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
-
-        let userMarker = null; // Переменная для хранения маркера текущего пользователя
-
-        // 2. Обработка клика по зафиксированной карте
-        map.on('click', function(e) {
-            const lat = e.latlng.lat;
-            const lng = e.latlng.lng;
-
-            // Если пользователь уже ставил булавку, удаляем старую, чтобы осталась только новая
-            if (userMarker) {
-                map.removeLayer(userMarker);
+        // ====================================================================
+        // SYNTHESIZED SOUND EFFECTS (Web Audio API)
+        // ====================================================================
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
             }
 
-            // Ставим новую булавку в месте клика
-            userMarker = L.marker([lat, lng]).addTo(map)
-                .bindPopup("<b>Вы отметили это место!</b>")
-                .openPopup();
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+            }
 
-            console.бах("Булавка поставлена на координаты:", lat, lng);
-            
-            // Сюда в будущем можно добавить отправку координат (lat, lng) 
-            // в облачную базу данных (например, Firebase или Supabase), 
-            // чтобы другие игроки тоже увидели эту точку!
+            playStretch() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(110, now);
+                osc.frequency.linearRampToValueAtTime(190, now + 0.05);
+
+                gain.gain.setValueAtTime(0.06, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            }
+
+            playLaunch() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(160, now);
+                osc.frequency.exponentialRampToValueAtTime(520, now + 0.16);
+
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.16);
+            }
+
+            playAbility(type) {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                if (type === 'chuck') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(280, now);
+                    osc.frequency.exponentialRampToValueAtTime(1100, now + 0.15);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                } else if (type === 'bomb') {
+                    this.playExplosion();
+                    return;
+                } else {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(250, now);
+                    osc.frequency.linearRampToValueAtTime(600, now + 0.1);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                }
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            }
+
+            playExplosion() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const bufferSize = this.ctx.sampleRate * 0.35;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const output = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.2));
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(130, now);
+                filter.frequency.linearRampToValueAtTime(35, now + 0.3);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.55, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                noise.start(now);
+                noise.stop(now + 0.35);
+            }
+
+            playImpact(type = 'wood', intensity = 1) {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+
+                if (type === 'metal') {
+                    // Metallic Heavy Clang Sound Effect
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(380, now);
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.2);
+
+                    const vol = Math.min(Math.max(intensity / 12, 0.08), 0.5);
+                    gain.gain.setValueAtTime(vol, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.22);
+                    return;
+                }
+
+                const bufferSize = this.ctx.sampleRate * 0.08;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const output = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    output[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = type === 'stone' ? 'lowpass' : (type === 'glass' ? 'highpass' : 'bandpass');
+                filter.frequency.value = type === 'stone' ? 240 : (type === 'glass' ? 2200 : 650);
+
+                const gain = this.ctx.createGain();
+                const volume = Math.min(Math.max(intensity / 14, 0.04), 0.4);
+                gain.gain.setValueAtTime(volume, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                noise.start(now);
+                noise.stop(now + 0.08);
+            }
+
+            playPigSqueal(isBoss = false) {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'triangle';
+                const baseFreq = isBoss ? 220 : 450;
+                osc.frequency.setValueAtTime(baseFreq, now);
+                osc.frequency.linearRampToValueAtTime(baseFreq + 250, now + 0.08);
+                osc.frequency.linearRampToValueAtTime(baseFreq - 100, now + 0.18);
+
+                gain.gain.setValueAtTime(isBoss ? 0.45 : 0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.18);
+            }
+
+            playVictory() {
+                if (this.muted) return;
+                this.init();
+                const notes = [261.63, 329.63, 392.00, 523.25];
+                notes.forEach((freq, idx) => {
+                    const now = this.ctx.currentTime + idx * 0.1;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                });
+            }
+        }
+
+        const sound = new SoundFX();
+
+        // ====================================================================
+        // EMOJI & SVG AVATAR GENERATORS
+        // ====================================================================
+        function createEmojiAvatar(emoji, bgColor = '#ef4444', size = 128) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = bgColor;
+            ctx.beginPath();
+            ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+            ctx.lineWidth = size * 0.05;
+            ctx.stroke();
+
+            ctx.font = `${size * 0.55}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(emoji, size / 2, size / 2 + size * 0.04);
+
+            const img = new Image();
+            img.src = canvas.toDataURL();
+            return img;
+        }
+
+        // BIRD TYPES
+        const BIRD_TYPES = {
+            red: {
+                id: 'red',
+                name: 'Red (Standard)',
+                abilityText: 'Standard flight & solid impact.',
+                radius: 20,
+                density: 0.0012,
+                color: '#ef4444',
+                img: createEmojiAvatar('😡', '#ef4444'),
+                hasAbility: false
+            },
+            chuck: {
+                id: 'chuck',
+                name: 'Chuck (Wood Breaker)',
+                abilityText: 'Click mid-flight to Dash & Pierce Wood!',
+                radius: 18,
+                density: 0.0010,
+                color: '#eab308',
+                img: createEmojiAvatar('⚡', '#eab308'),
+                hasAbility: true
+            },
+            bomb: {
+                id: 'bomb',
+                name: 'Bomb (Explosive)',
+                abilityText: 'Click mid-flight or on impact to Explode!',
+                radius: 23,
+                density: 0.0016,
+                color: '#1e293b',
+                img: createEmojiAvatar('💣', '#334155'),
+                hasAbility: true
+            },
+            terence: {
+                id: 'terence',
+                name: 'Terence (Heavyweight)',
+                abilityText: 'Massive weight & crushing power!',
+                radius: 32,
+                density: 0.0035,
+                color: '#991b1b',
+                img: createEmojiAvatar('👹', '#991b1b'),
+                hasAbility: false
+            }
+        };
+
+        // PIG VARIATION TYPES
+        const PIG_TYPES = {
+            minion: {
+                id: 'minion',
+                name: 'Minion Pig',
+                radius: 20,
+                health: 70,
+                armor: 1.0,
+                img: createEmojiAvatar('🐷', '#22c55e')
+            },
+            small: {
+                id: 'small',
+                name: 'Tiny Pig',
+                radius: 14,
+                health: 40,
+                armor: 1.0,
+                img: createEmojiAvatar('🐽', '#4ade80')
+            },
+            helmet: {
+                id: 'helmet',
+                name: 'Helmet Pig',
+                radius: 22,
+                health: 150,
+                armor: 0.6,
+                img: createEmojiAvatar('🪖', '#16a34a')
+            },
+            mustache: {
+                id: 'mustache',
+                name: 'Mustache Pig',
+                radius: 25,
+                health: 220,
+                armor: 0.75,
+                img: createEmojiAvatar('🥸', '#15803d')
+            },
+            boss: {
+                id: 'boss',
+                name: 'KING BOSS PIG',
+                radius: 46,
+                health: 800,
+                armor: 0.5,
+                isBoss: true,
+                img: createEmojiAvatar('👑', '#15803d')
+            }
+        };
+
+        // CELESTIAL BODIES
+        let celestialImages = {
+            sun: createEmojiAvatar('☀️', '#f59e0b', 180),
+            moon: createEmojiAvatar('🌙', '#0284c7', 180)
+        };
+
+        // ====================================================================
+        // MATTER.JS PHYSICS ENGINE & SLINGSHOT LOGIC
+        // ====================================================================
+        const { Engine, World, Bodies, Body, Vector, Events, Constraint } = Matter;
+
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let engine, world;
+        let slingshotSeat = { x: 180, y: 0 };
+        let armLeft = { x: 165, y: 0 };
+        let armRight = { x: 195, y: 0 };
+
+        let bird = null;
+        let isDragging = false;
+        let dragPos = { x: 0, y: 0 };
+        let birdState = 'SEATED'; // 'SEATED', 'DRAGGING', 'FLYING', 'SETTLED'
+        let abilityUsed = false;
+
+        const MAX_PULL_RADIUS = 110;
+        const LAUNCH_FORCE_MULTIPLIER = 0.40;
+
+        let currentLevel = 1;
+        let score = 0;
+        let levelBirdQueue = [];
+        let currentBirdIndex = 0;
+        let targets = [];
+        let blocks = [];
+        let balloons = [];
+        let constraints = [];
+        let particles = [];
+        let explosionRings = [];
+        let trailingPoints = [];
+        let levelComplete = false;
+        let turnTimer = null;
+
+        // Dynamic Deformable Terrain Mesh State
+        let terrainPoints = [];
+        let groundBodies = [];
+        const TERRAIN_SEGMENT_WIDTH = 12;
+
+        let viewWidth = window.innerWidth;
+        let viewHeight = window.innerHeight;
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            viewWidth = container.clientWidth;
+            viewHeight = container.clientHeight;
+            canvas.width = viewWidth;
+            canvas.height = viewHeight;
+
+            slingshotSeat.x = Math.max(120, viewWidth * 0.18);
+            slingshotSeat.y = viewHeight - 160;
+
+            armLeft = { x: slingshotSeat.x - 14, y: slingshotSeat.y - 22 };
+            armRight = { x: slingshotSeat.x + 14, y: slingshotSeat.y - 22 };
+
+            if (bird && birdState === 'SEATED') {
+                Body.setPosition(bird, slingshotSeat);
+                Body.setVelocity(bird, { x: 0, y: 0 });
+            }
+        }
+
+        // ====================================================================
+        // DEFORMABLE TERRAIN ENGINE
+        // ====================================================================
+        function initDeformableTerrain() {
+            // Remove previous ground colliders
+            groundBodies.forEach(b => World.remove(world, b));
+            groundBodies = [];
+
+            const baseGroundY = viewHeight - 60;
+            const segmentCount = Math.ceil(viewWidth / TERRAIN_SEGMENT_WIDTH) + 2;
+
+            terrainPoints = [];
+            for (let i = 0; i < segmentCount; i++) {
+                terrainPoints.push({
+                    x: i * TERRAIN_SEGMENT_WIDTH,
+                    y: baseGroundY
+                });
+            }
+
+            rebuildGroundColliders();
+        }
+
+        function rebuildGroundColliders() {
+            groundBodies.forEach(b => World.remove(world, b));
+            groundBodies = [];
+
+            // Group adjacent segments into physical colliders
+            for (let i = 0; i < terrainPoints.length - 1; i++) {
+                const p1 = terrainPoints[i];
+                const p2 = terrainPoints[i + 1];
+                const midX = (p1.x + p2.x) / 2;
+                const midY = (p1.y + p2.y) / 2;
+                const length = Math.hypot(p2.x - p1.x, p2.y - p1.y) + 1;
+                const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+
+                const segmentBody = Bodies.rectangle(midX, midY + 30, length, 60, {
+                    isStatic: true,
+                    friction: 0.85,
+                    angle: angle
+                });
+                segmentBody.customType = 'ground';
+                groundBodies.push(segmentBody);
+            }
+
+            World.add(world, groundBodies);
+        }
+
+        function dentTerrain(impactX, depth, radius) {
+            let changed = false;
+            for (let i = 0; i < terrainPoints.length; i++) {
+                const pt = terrainPoints[i];
+                const dist = Math.abs(pt.x - impactX);
+                if (dist < radius) {
+                    const factor = Math.cos((dist / radius) * (Math.PI / 2));
+                    const indent = depth * factor;
+                    const maxIndentY = viewHeight - 10; // floor limit
+                    if (pt.y < maxIndentY) {
+                        pt.y = Math.min(maxIndentY, pt.y + indent);
+                        changed = true;
+                    }
+                }
+            }
+
+            if (changed) {
+                // Spawn dirt/rock particles
+                spawnParticles(impactX, viewHeight - 60, '#78350f', 16);
+                spawnParticles(impactX, viewHeight - 60, '#a16207', 10);
+                rebuildGroundColliders();
+            }
+        }
+
+        function initEngine() {
+            engine = Engine.create({
+                enableSleeping: false,
+                positionIterations: 10,
+                velocityIterations: 10
+            });
+            world = engine.world;
+            world.gravity.y = 0.98;
+
+            // Collision Listener
+            Events.on(engine, 'collisionStart', (event) => {
+                event.pairs.forEach((pair) => {
+                    const { bodyA, bodyB } = pair;
+                    const relativeVel = Vector.sub(bodyA.velocity, bodyB.velocity);
+                    const speed = Vector.magnitude(relativeVel);
+
+                    // Check for Ground Deformation Dents
+                    if (bodyA.customType === 'ground' || bodyB.customType === 'ground') {
+                        const dynamicBody = bodyA.customType === 'ground' ? bodyB : bodyA;
+                        if (speed > 3.0) {
+                            const dentAmount = Math.min(speed * 3.2, 45);
+                            const radius = Math.min(speed * 9, 85);
+                            dentTerrain(dynamicBody.position.x, dentAmount, radius);
+                        }
+                    }
+
+                    // Check Damage to Blocks & Targets
+                    [bodyA, bodyB].forEach((body) => {
+                        if (body.customType === 'block' || body.customType === 'target' || body.customType === 'tnt') {
+                            if (speed > 1.2) {
+                                sound.playImpact(body.materialType || 'wood', speed);
+                            }
+                            let dmgMult = 14;
+                            if ((bodyA.birdType === 'chuck' || bodyB.birdType === 'chuck') && body.materialType === 'wood') {
+                                dmgMult = 35;
+                            }
+                            if (bodyA.birdType === 'terence' || bodyB.birdType === 'terence') {
+                                dmgMult = 45;
+                            }
+
+                            if (speed > 1.8) {
+                                let dmg = speed * dmgMult;
+                                if (body.armor) dmg *= body.armor;
+                                body.health -= dmg;
+
+                                if (body.customType === 'target') {
+                                    sound.playPigSqueal(body.isBoss);
+                                }
+                            }
+                        }
+                    });
+
+                    // Auto explode Bomb or TNT on impact
+                    if (bodyA.birdType === 'bomb' && !abilityUsed) triggerBombExplosion(bodyA);
+                    else if (bodyB.birdType === 'bomb' && !abilityUsed) triggerBombExplosion(bodyB);
+
+                    if (bodyA.customType === 'tnt' && speed > 2.0) triggerTNTExplosion(bodyA);
+                    if (bodyB.customType === 'tnt' && speed > 2.0) triggerTNTExplosion(bodyB);
+                });
+            });
+        }
+
+        // ====================================================================
+        // INDESTRUCTIBLE HELIUM BALLOONS (Spring Buoyancy)
+        // ====================================================================
+        function createBalloon(x, y, attachBody = null) {
+            const radius = 18;
+            const balloon = Bodies.circle(x, y, radius, {
+                density: 0.0001,
+                frictionAir: 0.015,
+                restitution: 0.95
+            });
+
+            balloon.customType = 'balloon';
+            balloon.radius = radius;
+            balloon.color = ['#ef4444', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6'][Math.floor(Math.random() * 5)];
+
+            balloons.push(balloon);
+            World.add(world, balloon);
+
+            if (attachBody) {
+                const constraint = Constraint.create({
+                    bodyA: balloon,
+                    bodyB: attachBody,
+                    stiffness: 0.08,
+                    damping: 0.02,
+                    length: 65,
+                    render: { visible: true }
+                });
+                constraints.push(constraint);
+                World.add(world, constraint);
+                balloon.attachedConstraint = constraint;
+            }
+
+            return balloon;
+        }
+
+        // Apply dynamic upward buoyant force to indestructible helium balloons
+        function updateBalloons() {
+            balloons.forEach(b => {
+                Body.applyForce(b, b.position, { x: 0, y: -0.0028 });
+            });
+        }
+
+        // ====================================================================
+        // EXPLOSIONS & ABILITIES
+        // ====================================================================
+        function triggerBombExplosion(bombBody) {
+            if (abilityUsed) return;
+            abilityUsed = true;
+            sound.playExplosion();
+
+            const pos = bombBody.position;
+            const radius = 190;
+            const forceStrength = 0.09;
+
+            explosionRings.push({ x: pos.x, y: pos.y, radius: 10, maxRadius: radius, alpha: 1.0 });
+            spawnParticles(pos.x, pos.y, '#f97316', 30);
+            spawnParticles(pos.x, pos.y, '#334155', 20);
+
+            // Dent ground from bomb explosion
+            dentTerrain(pos.x, 35, 90);
+
+            const allBodies = [...blocks, ...targets, ...balloons];
+            allBodies.forEach((b) => {
+                const dist = Vector.magnitude(Vector.sub(b.position, pos));
+                if (dist < radius) {
+                    const normal = Vector.normalise(Vector.sub(b.position, pos));
+                    const impulse = Vector.mult(normal, (1 - dist / radius) * forceStrength);
+                    Body.applyForce(b, b.position, impulse);
+                    if (b.customType !== 'balloon') {
+                        b.health -= (1 - dist / radius) * 230;
+                    }
+                }
+            });
+
+            hideAbilityPrompt();
+        }
+
+        function triggerTNTExplosion(tntBody) {
+            if (tntBody.exploded) return;
+            tntBody.exploded = true;
+            sound.playExplosion();
+
+            const pos = tntBody.position;
+            const radius = 230;
+
+            explosionRings.push({ x: pos.x, y: pos.y, radius: 10, maxRadius: radius, alpha: 1.0 });
+            spawnParticles(pos.x, pos.y, '#ef4444', 35);
+            spawnParticles(pos.x, pos.y, '#f59e0b', 25);
+
+            tntBody.health = 0;
+
+            // Dent ground from TNT explosion
+            dentTerrain(pos.x, 45, 110);
+
+            const allBodies = [...blocks, ...targets, ...balloons];
+            allBodies.forEach((b) => {
+                const dist = Vector.magnitude(Vector.sub(b.position, pos));
+                if (dist < radius) {
+                    const normal = Vector.normalise(Vector.sub(b.position, pos));
+                    const impulse = Vector.mult(normal, (1 - dist / radius) * 0.13);
+                    Body.applyForce(b, b.position, impulse);
+                    if (b.customType !== 'balloon') {
+                        b.health -= (1 - dist / radius) * 310;
+                    }
+                }
+            });
+        }
+
+        function triggerActiveBirdAbility() {
+            if (birdState !== 'FLYING' || abilityUsed || !bird) return;
+
+            const type = bird.birdType;
+            if (type === 'chuck') {
+                abilityUsed = true;
+                sound.playAbility('chuck');
+                const currentVel = bird.velocity;
+                const newVel = Vector.mult(Vector.normalise(currentVel), 22);
+                Body.setVelocity(bird, newVel);
+                spawnParticles(bird.position.x, bird.position.y, '#facc15', 20);
+                hideAbilityPrompt();
+            } else if (type === 'bomb') {
+                triggerBombExplosion(bird);
+            }
+        }
+
+        function showAbilityPrompt(text) {
+            const prompt = document.getElementById('ability-prompt');
+            document.getElementById('ability-text').innerText = text;
+            prompt.classList.remove('opacity-0', '-translate-y-2');
+            prompt.classList.add('opacity-100', 'translate-y-0');
+        }
+
+        function hideAbilityPrompt() {
+            const prompt = document.getElementById('ability-prompt');
+            prompt.classList.remove('opacity-100', 'translate-y-0');
+            prompt.classList.add('opacity-0', '-translate-y-2');
+        }
+
+        // ====================================================================
+        // 7 HARD & STRATEGIC LEVELS WITH METAL BLOCKS
+        // ====================================================================
+        const LEVEL_DEFINITIONS = [
+            // Level 1: Outpost
+            {
+                queue: ['red', 'chuck', 'bomb'],
+                build: (groundY, rx) => {
+                    createBlock(rx, groundY - 40, 20, 80, 'wood');
+                    createBlock(rx + 110, groundY - 40, 20, 80, 'wood');
+                    createBlock(rx + 55, groundY - 90, 150, 20, 'wood');
+                    createTarget(rx + 55, groundY - 30, 'minion');
+
+                    createBlock(rx + 25, groundY - 130, 20, 60, 'glass');
+                    createBlock(rx + 85, groundY - 130, 20, 60, 'glass');
+                    createBlock(rx + 55, groundY - 170, 110, 20, 'glass');
+                    createTarget(rx + 55, groundY - 120, 'small');
+                }
+            },
+            // Level 2: Steel Citadel
+            {
+                queue: ['chuck', 'red', 'bomb', 'terence'],
+                build: (groundY, rx) => {
+                    createBlock(rx, groundY - 50, 25, 100, 'metal');
+                    createBlock(rx + 130, groundY - 50, 25, 100, 'metal');
+                    createTNT(rx + 65, groundY - 20);
+                    createBlock(rx + 65, groundY - 110, 170, 20, 'wood');
+                    createTarget(rx + 65, groundY - 140, 'helmet');
+
+                    createBlock(rx + 30, groundY - 170, 20, 80, 'wood');
+                    createBlock(rx + 100, groundY - 170, 20, 80, 'wood');
+                    createBlock(rx + 65, groundY - 220, 120, 20, 'stone');
+                    createTarget(rx + 65, groundY - 60, 'minion');
+                }
+            },
+            // Level 3: Bunker
+            {
+                queue: ['bomb', 'terence', 'chuck', 'red'],
+                build: (groundY, rx) => {
+                    createBlock(rx - 20, groundY - 40, 30, 80, 'stone');
+                    createBlock(rx + 60, groundY - 40, 30, 80, 'metal');
+                    createBlock(rx + 140, groundY - 40, 30, 80, 'stone');
+                    createBlock(rx + 60, groundY - 90, 210, 22, 'metal');
+
+                    createTarget(rx + 20, groundY - 30, 'mustache');
+                    createTNT(rx + 100, groundY - 30);
+
+                    createBlock(rx + 10, groundY - 140, 20, 80, 'wood');
+                    createBlock(rx + 110, groundY - 140, 20, 80, 'wood');
+                    createBlock(rx + 60, groundY - 190, 140, 20, 'glass');
+                    createTarget(rx + 60, groundY - 120, 'helmet');
+                }
+            },
+            // Level 4: Sky Fortress with Indestructible Balloons
+            {
+                queue: ['chuck', 'bomb', 'terence', 'red'],
+                build: (groundY, rx) => {
+                    createBlock(rx, groundY - 40, 20, 80, 'stone');
+                    createBlock(rx + 120, groundY - 40, 20, 80, 'stone');
+                    createBlock(rx + 60, groundY - 90, 160, 20, 'metal');
+                    createTarget(rx + 60, groundY - 30, 'mustache');
+
+                    // Floating platform with bouncy balloons
+                    const floatY = groundY - 220;
+                    const platform = createBlock(rx + 60, floatY, 200, 22, 'wood');
+                    
+                    createBalloon(rx - 20, floatY - 40, platform);
+                    createBalloon(rx + 140, floatY - 40, platform);
+
+                    createBlock(rx + 10, floatY - 40, 18, 60, 'glass');
+                    createBlock(rx + 110, floatY - 40, 18, 60, 'glass');
+                    createTNT(rx + 60, floatY - 30);
+                    createTarget(rx + 60, floatY - 80, 'helmet');
+                }
+            },
+            // Level 5: Mega Bastion
+            {
+                queue: ['red', 'bomb', 'chuck', 'terence', 'bomb'],
+                build: (groundY, rx) => {
+                    createBlock(rx - 30, groundY - 50, 30, 100, 'metal');
+                    createBlock(rx + 50, groundY - 50, 30, 100, 'stone');
+                    createBlock(rx + 130, groundY - 50, 30, 100, 'metal');
+                    createBlock(rx + 50, groundY - 110, 210, 25, 'metal');
+
+                    createTarget(rx + 10, groundY - 30, 'helmet');
+                    createTNT(rx + 50, groundY - 140);
+                    createTarget(rx + 90, groundY - 30, 'mustache');
+
+                    createBlock(rx + 10, groundY - 170, 20, 80, 'wood');
+                    createBlock(rx + 90, groundY - 170, 20, 80, 'wood');
+                    createBlock(rx + 50, groundY - 220, 130, 20, 'wood');
+                    createTarget(rx + 50, groundY - 250, 'small');
+                }
+            },
+            // Level 6: Titanium Fortress
+            {
+                queue: ['terence', 'bomb', 'chuck', 'red', 'bomb'],
+                build: (groundY, rx) => {
+                    createBlock(rx - 40, groundY - 60, 35, 120, 'metal');
+                    createBlock(rx + 40, groundY - 60, 35, 120, 'stone');
+                    createBlock(rx + 120, groundY - 60, 35, 120, 'metal');
+                    createBlock(rx + 40, groundY - 130, 240, 28, 'metal');
+
+                    createTarget(rx, groundY - 30, 'helmet');
+                    createTarget(rx + 80, groundY - 30, 'helmet');
+                    createTNT(rx + 40, groundY - 30);
+
+                    const floatY = groundY - 250;
+                    const p1 = createBlock(rx + 40, floatY, 220, 24, 'metal');
+                    createBalloon(rx - 30, floatY - 50, p1);
+                    createBalloon(rx + 110, floatY - 50, p1);
+
+                    createBlock(rx + 10, floatY - 40, 20, 70, 'wood');
+                    createBlock(rx + 70, floatY - 40, 20, 70, 'wood');
+                    createTarget(rx + 40, floatY - 30, 'mustache');
+                    createTNT(rx + 40, floatY - 80);
+                }
+            },
+            // Level 7: KING BOSS PIG BATTLE
+            {
+                queue: ['terence', 'bomb', 'chuck', 'red', 'bomb', 'terence'],
+                build: (groundY, rx) => {
+                    createBlock(rx - 50, groundY - 70, 40, 140, 'metal');
+                    createBlock(rx + 50, groundY - 70, 40, 140, 'metal');
+                    createBlock(rx + 150, groundY - 70, 40, 140, 'metal');
+                    createBlock(rx + 50, groundY - 150, 280, 32, 'metal');
+
+                    createTNT(rx, groundY - 30);
+                    createTNT(rx + 100, groundY - 30);
+                    createTarget(rx + 50, groundY - 30, 'mustache');
+
+                    const floatY = groundY - 260;
+                    const throne = createBlock(rx + 50, floatY, 220, 26, 'metal');
+                    createBalloon(rx - 20, floatY - 60, throne);
+                    createBalloon(rx + 120, floatY - 60, throne);
+
+                    createBlock(rx - 10, floatY - 50, 24, 80, 'wood');
+                    createBlock(rx + 110, floatY - 50, 24, 80, 'wood');
+                    createBlock(rx + 50, floatY - 100, 160, 20, 'glass');
+
+                    createTarget(rx + 50, floatY - 50, 'boss');
+                }
+            }
+        ];
+
+        function loadLevel(levelNum) {
+            if (turnTimer) clearTimeout(turnTimer);
+
+            World.clear(world);
+            Engine.clear(engine);
+
+            blocks = [];
+            targets = [];
+            balloons = [];
+            constraints = [];
+            particles = [];
+            explosionRings = [];
+            trailingPoints = [];
+            bird = null;
+            birdState = 'SEATED';
+            isDragging = false;
+            levelComplete = false;
+            abilityUsed = false;
+            hideAbilityPrompt();
+
+            const leftWall = Bodies.rectangle(-30, viewHeight / 2, 60, viewHeight * 2, { isStatic: true });
+            const rightWall = Bodies.rectangle(viewWidth + 30, viewHeight / 2, 60, viewHeight * 2, { isStatic: true });
+            World.add(world, [leftWall, rightWall]);
+
+            initDeformableTerrain();
+
+            const groundY = viewHeight - 60;
+            const rightX = Math.min(viewWidth - 280, viewWidth * 0.65);
+
+            const def = LEVEL_DEFINITIONS[(levelNum - 1) % LEVEL_DEFINITIONS.length];
+            levelBirdQueue = [...def.queue];
+            currentBirdIndex = 0;
+
+            def.build(groundY, rightX);
+
+            spawnBirdToSeat();
+
+            document.getElementById('level-select').value = levelNum;
+            document.getElementById('score-display').innerText = score;
+            updateShotsUI();
+            document.getElementById('status-modal').classList.add('hidden');
+        }
+
+        function createBlock(x, y, width, height, material = 'wood', isStatic = false) {
+            let density = 0.001;
+            let health = 100;
+
+            if (material === 'metal') {
+                density = 0.0055;
+                health = 520; // Metal is extremely tough
+            } else if (material === 'stone') {
+                density = 0.0028;
+                health = 240;
+            } else if (material === 'glass') {
+                density = 0.0005;
+                health = 40;
+            }
+
+            const block = Bodies.rectangle(x, y, width, height, {
+                isStatic: isStatic,
+                density: density,
+                friction: 0.6,
+                restitution: 0.1
+            });
+
+            block.customType = 'block';
+            block.materialType = material;
+            block.width = width;
+            block.height = height;
+            block.health = health;
+            block.maxHealth = health;
+
+            blocks.push(block);
+            World.add(world, block);
+            return block;
+        }
+
+        function createTNT(x, y) {
+            const size = 34;
+            const tnt = Bodies.rectangle(x, y, size, size, {
+                density: 0.001,
+                friction: 0.5,
+                restitution: 0.2
+            });
+
+            tnt.customType = 'tnt';
+            tnt.width = size;
+            tnt.height = size;
+            tnt.health = 30;
+            tnt.maxHealth = 30;
+            tnt.exploded = false;
+
+            blocks.push(tnt);
+            World.add(world, tnt);
+            return tnt;
+        }
+
+        function createTarget(x, y, typeId = 'minion') {
+            const pigDef = PIG_TYPES[typeId];
+            const target = Bodies.circle(x, y, pigDef.radius, {
+                density: 0.0012,
+                friction: 0.5,
+                restitution: 0.2
+            });
+
+            target.customType = 'target';
+            target.pigType = typeId;
+            target.radius = pigDef.radius;
+            target.health = pigDef.health;
+            target.maxHealth = pigDef.health;
+            target.armor = pigDef.armor;
+            target.isBoss = pigDef.isBoss || false;
+
+            targets.push(target);
+            World.add(world, target);
+            return target;
+        }
+
+        function spawnBirdToSeat() {
+            if (bird) World.remove(world, bird);
+
+            if (currentBirdIndex >= levelBirdQueue.length) return;
+
+            const birdTypeId = levelBirdQueue[currentBirdIndex];
+            const birdDef = BIRD_TYPES[birdTypeId];
+
+            bird = Bodies.circle(slingshotSeat.x, slingshotSeat.y, birdDef.radius, {
+                density: birdDef.density,
+                frictionAir: 0.002,
+                friction: 0.5,
+                restitution: 0.35,
+                isStatic: true
+            });
+
+            bird.customType = 'bird';
+            bird.birdType = birdTypeId;
+            bird.radius = birdDef.radius;
+
+            World.add(world, bird);
+            birdState = 'SEATED';
+            dragPos = { x: slingshotSeat.x, y: slingshotSeat.y };
+            trailingPoints = [];
+            abilityUsed = false;
+            hideAbilityPrompt();
+        }
+
+        // ====================================================================
+        // SLINGSHOT CONTROLS
+        // ====================================================================
+        function getPointerPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function handlePointerDown(e) {
+            if (levelComplete) return;
+
+            if (birdState === 'FLYING') {
+                triggerActiveBirdAbility();
+                return;
+            }
+
+            if (birdState !== 'SEATED') return;
+
+            const pos = getPointerPos(e);
+            const dist = Vector.magnitude(Vector.sub(pos, bird.position));
+
+            if (dist < 60) {
+                isDragging = true;
+                birdState = 'DRAGGING';
+                dragPos = pos;
+                sound.playStretch();
+            }
+        }
+
+        function handlePointerMove(e) {
+            if (!isDragging || birdState !== 'DRAGGING') return;
+            const pos = getPointerPos(e);
+            const pullVector = Vector.sub(pos, slingshotSeat);
+            const distance = Vector.magnitude(pullVector);
+
+            if (distance > MAX_PULL_RADIUS) {
+                const angle = Math.atan2(pullVector.y, pullVector.x);
+                dragPos = {
+                    x: slingshotSeat.x + Math.cos(angle) * MAX_PULL_RADIUS,
+                    y: slingshotSeat.y + Math.sin(angle) * MAX_PULL_RADIUS
+                };
+            } else {
+                dragPos = pos;
+            }
+
+            Body.setPosition(bird, dragPos);
+        }
+
+        function handlePointerUp() {
+            if (!isDragging || birdState !== 'DRAGGING') return;
+            isDragging = false;
+            birdState = 'FLYING';
+
+            const pullVector = Vector.sub(slingshotSeat, bird.position);
+
+            Body.setStatic(bird, false);
+
+            const launchVelocity = Vector.mult(pullVector, LAUNCH_FORCE_MULTIPLIER);
+            Body.setVelocity(bird, launchVelocity);
+
+            sound.playLaunch();
+
+            const birdDef = BIRD_TYPES[bird.birdType];
+            if (birdDef.hasAbility) {
+                showAbilityPrompt(birdDef.abilityText);
+            }
+
+            currentBirdIndex++;
+            updateShotsUI();
+
+            scheduleTurnCheck();
+        }
+
+        function scheduleTurnCheck() {
+            if (turnTimer) clearTimeout(turnTimer);
+
+            turnTimer = setInterval(() => {
+                if (!bird || birdState !== 'FLYING') {
+                    clearInterval(turnTimer);
+                    return;
+                }
+
+                const speed = Vector.magnitude(bird.velocity);
+                const isOutOfBounds = bird.position.x < -50 || bird.position.x > viewWidth + 100 || bird.position.y > viewHeight;
+
+                if (speed < 0.25 || isOutOfBounds) {
+                    clearInterval(turnTimer);
+                    birdState = 'SETTLED';
+                    hideAbilityPrompt();
+
+                    if (targets.length === 0) {
+                        handleVictory();
+                    } else if (currentBirdIndex < levelBirdQueue.length) {
+                        setTimeout(spawnBirdToSeat, 600);
+                    } else {
+                        setTimeout(checkTurnEnd, 1500);
+                    }
+                }
+            }, 300);
+        }
+
+        function checkTurnEnd() {
+            if (targets.length === 0) {
+                handleVictory();
+            } else {
+                handleDefeat();
+            }
+        }
+
+        canvas.addEventListener('mousedown', handlePointerDown);
+        canvas.addEventListener('mousemove', handlePointerMove);
+        window.addEventListener('mouseup', handlePointerUp);
+
+        canvas.addEventListener('touchstart', handlePointerDown, { passive: true });
+        canvas.addEventListener('touchmove', handlePointerMove, { passive: true });
+        window.addEventListener('touchend', handlePointerUp);
+
+        // ====================================================================
+        // WIN/LOSS & PARTICLES
+        // ====================================================================
+        function handleVictory() {
+            levelComplete = true;
+            sound.playVictory();
+
+            const remaining = levelBirdQueue.length - currentBirdIndex;
+            const bonus = remaining * 500;
+            const totalLevelScore = score + bonus;
+
+            document.getElementById('modal-title').innerText = "LEVEL CLEAR!";
+            document.getElementById('modal-subtitle').innerText = "Awesome shot! All pigs eliminated.";
+            document.getElementById('modal-icon').className = "text-6xl mb-3 text-amber-400";
+            document.getElementById('modal-icon').innerHTML = '<i class="fa-solid fa-trophy"></i>';
+
+            document.getElementById('modal-destr-score').innerText = score;
+            document.getElementById('modal-bonus-score').innerText = `+${bonus}`;
+            document.getElementById('modal-total-score').innerText = totalLevelScore;
+
+            const starContainer = document.getElementById('star-rating');
+            const stars = remaining >= 2 ? 3 : (remaining >= 1 ? 2 : 1);
+            starContainer.innerHTML = '';
+            for (let i = 0; i < 3; i++) {
+                starContainer.innerHTML += `<i class="fa-solid fa-star ${i < stars ? 'text-amber-400' : 'text-slate-600'}"></i>`;
+            }
+
+            document.getElementById('modal-btn-next').onclick = () => {
+                currentLevel = (currentLevel % 7) + 1;
+                loadLevel(currentLevel);
+            };
+
+            document.getElementById('status-modal').classList.remove('hidden');
+        }
+
+        function handleDefeat() {
+            levelComplete = true;
+
+            document.getElementById('modal-title').innerText = "LEVEL FAILED";
+            document.getElementById('modal-subtitle').innerText = "Out of birds! The pigs survived.";
+            document.getElementById('modal-icon').className = "text-6xl mb-3 text-red-500";
+            document.getElementById('modal-icon').innerHTML = '<i class="fa-solid fa-face-frown"></i>';
+
+            document.getElementById('modal-destr-score').innerText = score;
+            document.getElementById('modal-bonus-score').innerText = "+0";
+            document.getElementById('modal-total-score').innerText = score;
+
+            document.getElementById('star-rating').innerHTML = `
+                <i class="fa-solid fa-star text-slate-600"></i>
+                <i class="fa-solid fa-star text-slate-600"></i>
+                <i class="fa-solid fa-star text-slate-600"></i>
+            `;
+
+            document.getElementById('modal-btn-next').onclick = () => {
+                loadLevel(currentLevel);
+            };
+
+            document.getElementById('status-modal').classList.remove('hidden');
+        }
+
+        function spawnParticles(x, y, color, count = 10) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    size: Math.random() * 5 + 2,
+                    color: color,
+                    alpha: 1.0
+                });
+            }
+        }
+
+        // ====================================================================
+        // AUTOMATIC CONTINUOUS DAY/NIGHT ORBIT SYSTEM
+        // ====================================================================
+        function drawSkyAndCelestial() {
+            const totalCycle = 60000; // 60s day/night full loop
+            const elapsed = (Date.now() % totalCycle) / totalCycle; // 0.0 to 1.0
+            const angle = elapsed * Math.PI * 2; // 0 to 2PI
+
+            // Smooth Interpolated Sky Colors
+            let skyGrad = ctx.createLinearGradient(0, 0, 0, viewHeight);
+
+            let phaseName = 'Daytime';
+            let iconClass = 'fa-solid fa-sun text-amber-400';
+
+            if (elapsed < 0.25) {
+                // Sunrise -> Day
+                skyGrad.addColorStop(0, '#38bdf8');
+                skyGrad.addColorStop(0.6, '#bae6fd');
+                skyGrad.addColorStop(1, '#ecfdf5');
+                phaseName = 'Morning';
+            } else if (elapsed < 0.5) {
+                // Day -> Sunset
+                skyGrad.addColorStop(0, '#c2410c');
+                skyGrad.addColorStop(0.5, '#f59e0b');
+                skyGrad.addColorStop(1, '#fef3c7');
+                phaseName = 'Sunset';
+                iconClass = 'fa-solid fa-cloud-sun text-orange-400';
+            } else if (elapsed < 0.75) {
+                // Sunset -> Night
+                skyGrad.addColorStop(0, '#020617');
+                skyGrad.addColorStop(0.7, '#0f172a');
+                skyGrad.addColorStop(1, '#1e293b');
+                phaseName = 'Nighttime';
+                iconClass = 'fa-solid fa-moon text-sky-300';
+            } else {
+                // Night -> Sunrise
+                skyGrad.addColorStop(0, '#4c1d95');
+                skyGrad.addColorStop(0.6, '#9333ea');
+                skyGrad.addColorStop(1, '#fef08a');
+                phaseName = 'Dawn';
+                iconClass = 'fa-solid fa-sun text-amber-300';
+            }
+
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, viewWidth, viewHeight);
+
+            // Update Header Badge
+            document.getElementById('time-badge-text').innerText = phaseName;
+            document.getElementById('time-badge-icon').className = iconClass;
+
+            // Night Stars
+            if (elapsed >= 0.5 && elapsed <= 0.85) {
+                ctx.fillStyle = '#ffffff';
+                for (let i = 0; i < 40; i++) {
+                    const sx = (Math.sin(i * 99) * 0.5 + 0.5) * viewWidth;
+                    const sy = (Math.cos(i * 33) * 0.5 + 0.5) * (viewHeight * 0.6);
+                    ctx.globalAlpha = Math.sin(Date.now() * 0.003 + i) * 0.4 + 0.6;
+                    ctx.fillRect(sx, sy, 2, 2);
+                }
+                ctx.globalAlpha = 1.0;
+            }
+
+            // CELESTIAL ORBIT MOVEMENT (Sun & Moon Opposite Sides)
+            const sunAngle = angle - Math.PI / 2;
+            const moonAngle = sunAngle + Math.PI;
+
+            const sunX = viewWidth / 2 + Math.cos(sunAngle) * (viewWidth * 0.45);
+            const sunY = (viewHeight - 60) - Math.sin(sunAngle) * (viewHeight * 0.5);
+
+            const moonX = viewWidth / 2 + Math.cos(moonAngle) * (viewWidth * 0.45);
+            const moonY = (viewHeight - 60) - Math.sin(moonAngle) * (viewHeight * 0.5);
+
+            // Draw Sun
+            if (sunY < viewHeight) {
+                drawOrb(sunX, sunY, celestialImages.sun, true);
+            }
+            // Draw Moon
+            if (moonY < viewHeight) {
+                drawOrb(moonX, moonY, celestialImages.moon, false);
+            }
+        }
+
+        function drawOrb(cx, cy, imgObj, isSun) {
+            const radius = 42;
+            const time = Date.now() * 0.001;
+
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            if (isSun) {
+                // Golden Solar Rays
+                ctx.strokeStyle = 'rgba(251, 191, 36, 0.38)';
+                ctx.lineWidth = 3;
+                for (let i = 0; i < 12; i++) {
+                    const a = (i / 12) * Math.PI * 2 + time * 0.2;
+                    const len = radius + 22 + Math.sin(time * 3 + i) * 6;
+                    ctx.beginPath();
+                    ctx.moveTo(Math.cos(a) * (radius + 4), Math.sin(a) * (radius + 4));
+                    ctx.lineTo(Math.cos(a) * len, Math.sin(a) * len);
+                    ctx.stroke();
+                }
+                ctx.shadowColor = '#f59e0b';
+                ctx.shadowBlur = 25;
+            } else {
+                // Cool Cyan Lunar Halo Rays
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 8; i++) {
+                    const a = (i / 8) * Math.PI * 2 - time * 0.1;
+                    const len = radius + 18 + Math.cos(time * 2 + i) * 5;
+                    ctx.beginPath();
+                    ctx.moveTo(Math.cos(a) * (radius + 4), Math.sin(a) * (radius + 4));
+                    ctx.lineTo(Math.cos(a) * len, Math.sin(a) * len);
+                    ctx.stroke();
+                }
+                ctx.shadowColor = '#0284c7';
+                ctx.shadowBlur = 20;
+            }
+
+            ctx.drawImage(imgObj, -radius, -radius, radius * 2, radius * 2);
+            ctx.restore();
+        }
+
+        // ====================================================================
+        // MAIN CANVAS RENDER LOOP
+        // ====================================================================
+        function render() {
+            Engine.update(engine, 1000 / 60);
+            updateBalloons();
+
+            ctx.clearRect(0, 0, viewWidth, viewHeight);
+
+            // Sky & Orbiting Celestial Bodies
+            drawSkyAndCelestial();
+
+            // RENDER DEFORMABLE GROUND MESH
+            if (terrainPoints.length > 0) {
+                ctx.beginPath();
+                ctx.moveTo(0, viewHeight);
+                ctx.lineTo(terrainPoints[0].x, terrainPoints[0].y);
+
+                for (let i = 1; i < terrainPoints.length; i++) {
+                    ctx.lineTo(terrainPoints[i].x, terrainPoints[i].y);
+                }
+
+                ctx.lineTo(viewWidth, viewHeight);
+                ctx.closePath();
+
+                // Ground Fill
+                ctx.fillStyle = '#15803d'; // Green Grass surface
+                ctx.fill();
+
+                ctx.strokeStyle = '#86efac';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // Dirt under layer
+                ctx.fillStyle = '#78350f';
+                ctx.beginPath();
+                ctx.moveTo(0, viewHeight);
+                for (let i = 0; i < terrainPoints.length; i++) {
+                    ctx.lineTo(terrainPoints[i].x, terrainPoints[i].y + 12);
+                }
+                ctx.lineTo(viewWidth, viewHeight);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Trailing Dots for launched bird
+            if (birdState === 'FLYING' && bird) {
+                if (Math.abs(bird.velocity.x) > 0.4 || Math.abs(bird.velocity.y) > 0.4) {
+                    trailingPoints.push({ x: bird.position.x, y: bird.position.y });
+                    if (trailingPoints.length > 25) trailingPoints.shift();
+                }
+            }
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([4, 4]);
+            for (let i = 0; i < trailingPoints.length - 1; i++) {
+                ctx.moveTo(trailingPoints[i].x, trailingPoints[i].y);
+                ctx.lineTo(trailingPoints[i + 1].x, trailingPoints[i + 1].y);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Synchronized Trajectory Prediction
+            if (birdState === 'DRAGGING') {
+                const pullVector = Vector.sub(slingshotSeat, bird.position);
+                const launchVel = Vector.mult(pullVector, LAUNCH_FORCE_MULTIPLIER);
+                const g = engine.world.gravity.y;
+                const airResistance = 1 - 0.002;
+
+                let simPos = { x: bird.position.x, y: bird.position.y };
+                let simVel = { x: launchVel.x, y: launchVel.y };
+
+                for (let i = 0; i < 35; i++) {
+                    simVel.x *= airResistance;
+                    simVel.y = (simVel.y + g) * airResistance;
+                    simPos.x += simVel.x;
+                    simPos.y += simVel.y;
+
+                    ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0.1, 1 - i / 35)})`;
+                    ctx.beginPath();
+                    ctx.arc(simPos.x, simPos.y, Math.max(1.5, 4.5 - (i * 0.09)), 0, Math.PI * 2);
+                    ctx.fill();
+
+                    if (simPos.y >= viewHeight - 60) break;
+                }
+            }
+
+            // Draw Elastic Ropes attached to Indestructible Balloons
+            constraints.forEach((c) => {
+                if (c.bodyA && c.bodyB) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#f8fafc';
+                    ctx.lineWidth = 2.5;
+                    ctx.moveTo(c.bodyA.position.x, c.bodyA.position.y);
+                    ctx.lineTo(c.bodyB.position.x, c.bodyB.position.y);
+                    ctx.stroke();
+                }
+            });
+
+            // Draw Indestructible Bouncy Balloons
+            balloons.forEach((bal) => {
+                ctx.save();
+                ctx.translate(bal.position.x, bal.position.y);
+                ctx.fillStyle = bal.color;
+                ctx.beginPath();
+                ctx.arc(0, 0, bal.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Shiny highlight
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.beginPath();
+                ctx.arc(-bal.radius * 0.3, -bal.radius * 0.3, bal.radius * 0.25, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            });
+
+            // Draw BACK Slingshot Band
+            if (birdState === 'DRAGGING' || birdState === 'SEATED') {
+                ctx.beginPath();
+                ctx.lineWidth = 6;
+                ctx.strokeStyle = '#271c19';
+                ctx.moveTo(armRight.x, armRight.y);
+                ctx.lineTo(bird.position.x, bird.position.y);
+                ctx.stroke();
+            }
+
+            // Draw Blocks (Metal, Stone, Wood, Glass, TNT)
+            for (let i = blocks.length - 1; i >= 0; i--) {
+                const b = blocks[i];
+                if (b.health <= 0) {
+                    if (b.customType === 'tnt') triggerTNTExplosion(b);
+                    spawnParticles(b.position.x, b.position.y, b.materialType === 'metal' ? '#e2e8f0' : (b.materialType === 'wood' ? '#d97706' : (b.materialType === 'stone' ? '#94a3b8' : '#38bdf8')));
+                    World.remove(world, b);
+                    blocks.splice(i, 1);
+                    score += b.materialType === 'metal' ? 300 : 100;
+                    document.getElementById('score-display').innerText = score;
+                    continue;
+                }
+
+                ctx.save();
+                ctx.translate(b.position.x, b.position.y);
+                ctx.rotate(b.angle);
+
+                if (b.customType === 'tnt') {
+                    ctx.fillStyle = '#dc2626';
+                    ctx.fillRect(-b.width / 2, -b.height / 2, b.width, b.height);
+                    ctx.strokeStyle = '#f59e0b';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(-b.width / 2 + 2, -b.height / 2 + 2, b.width - 4, b.height - 4);
+                    
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 11px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('TNT', 0, 1);
+                } else {
+                    if (b.materialType === 'metal') {
+                        // STEEL / METAL BLOCK WITH RIVETS
+                        ctx.fillStyle = '#334155';
+                        ctx.fillRect(-b.width / 2, -b.height / 2, b.width, b.height);
+
+                        // Metallic Sheen
+                        ctx.strokeStyle = '#cbd5e1';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(-b.width / 2, -b.height / 2, b.width, b.height);
+
+                        // Corner Rivets
+                        ctx.fillStyle = '#94a3b8';
+                        const rx = b.width / 2 - 4;
+                        const ry = b.height / 2 - 4;
+                        ctx.fillRect(-rx, -ry, 3, 3);
+                        ctx.fillRect(rx - 3, -ry, 3, 3);
+                        ctx.fillRect(-rx, ry - 3, 3, 3);
+                        ctx.fillRect(rx - 3, ry - 3, 3, 3);
+                    } else if (b.materialType === 'wood') {
+                        ctx.fillStyle = '#b45309';
+                        ctx.fillRect(-b.width / 2, -b.height / 2, b.width, b.height);
+                        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(-b.width / 2, -b.height / 2, b.width, b.height);
+                    } else if (b.materialType === 'stone') {
+                        ctx.fillStyle = '#64748b';
+                        ctx.fillRect(-b.width / 2, -b.height / 2, b.width, b.height);
+                        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(-b.width / 2, -b.height / 2, b.width, b.height);
+                    } else if (b.materialType === 'glass') {
+                        ctx.fillStyle = '#38bdf8';
+                        ctx.fillRect(-b.width / 2, -b.height / 2, b.width, b.height);
+                        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+                        ctx.lineWidth = 1.5;
+                        ctx.strokeRect(-b.width / 2, -b.height / 2, b.width, b.height);
+                    }
+
+                    if (b.health / b.maxHealth < 0.65) {
+                        ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(-b.width / 4, -b.height / 4);
+                        ctx.lineTo(b.width / 4, b.height / 4);
+                        ctx.stroke();
+                    }
+                }
+
+                ctx.restore();
+            }
+
+            // Draw Targets & Boss Pig
+            for (let i = targets.length - 1; i >= 0; i--) {
+                const t = targets[i];
+                if (t.health <= 0) {
+                    sound.playPigSqueal(t.isBoss);
+                    spawnParticles(t.position.x, t.position.y, '#22c55e', t.isBoss ? 40 : 16);
+                    World.remove(world, t);
+                    targets.splice(i, 1);
+                    score += t.isBoss ? 3000 : 500;
+                    document.getElementById('score-display').innerText = score;
+
+                    if (targets.length === 0) {
+                        setTimeout(handleVictory, 600);
+                    }
+                    continue;
+                }
+
+                ctx.save();
+                ctx.translate(t.position.x, t.position.y);
+                ctx.rotate(t.angle);
+
+                const pigDef = PIG_TYPES[t.pigType];
+                const r = t.radius;
+                ctx.drawImage(pigDef.img, -r, -r, r * 2, r * 2);
+
+                ctx.restore();
+
+                // BOSS HEALTH BAR OVERLAY
+                if (t.isBoss) {
+                    const healthRatio = Math.max(0, t.health / t.maxHealth);
+                    const barW = 80;
+                    const barH = 10;
+                    const bx = t.position.x - barW / 2;
+                    const by = t.position.y - r - 22;
+
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+                    ctx.fillRect(bx - 2, by - 2, barW + 4, barH + 4);
+
+                    ctx.fillStyle = healthRatio > 0.5 ? '#22c55e' : (healthRatio > 0.25 ? '#eab308' : '#ef4444');
+                    ctx.fillRect(bx, by, barW * healthRatio, barH);
+
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(bx, by, barW, barH);
+
+                    ctx.fillStyle = '#fef08a';
+                    ctx.font = 'bold 10px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('KING BOSS', t.position.x, by - 4);
+                }
+            }
+
+            // Draw Slingshot Frame
+            const groundY = viewHeight - 60;
+            ctx.fillStyle = '#451a03';
+            ctx.fillRect(slingshotSeat.x - 7, slingshotSeat.y, 14, groundY - slingshotSeat.y);
+            ctx.fillRect(armLeft.x - 4, armLeft.y, 8, 26);
+            ctx.fillRect(armRight.x - 4, armRight.y, 8, 26);
+
+            // Draw Active Bird
+            if (bird) {
+                ctx.save();
+                ctx.translate(bird.position.x, bird.position.y);
+                ctx.rotate(bird.angle);
+
+                const birdDef = BIRD_TYPES[bird.birdType];
+                const r = bird.radius;
+                ctx.drawImage(birdDef.img, -r, -r, r * 2, r * 2);
+
+                ctx.restore();
+            }
+
+            // Draw FRONT Slingshot Band
+            if (birdState === 'DRAGGING' || birdState === 'SEATED') {
+                ctx.beginPath();
+                ctx.lineWidth = 6;
+                ctx.strokeStyle = '#451a03';
+                ctx.moveTo(armLeft.x, armLeft.y);
+                ctx.lineTo(bird.position.x, bird.position.y);
+                ctx.stroke();
+            }
+
+            // Draw Explosion Rings
+            for (let i = explosionRings.length - 1; i >= 0; i--) {
+                const ring = explosionRings[i];
+                ring.radius += 10;
+                ring.alpha -= 0.05;
+
+                if (ring.alpha <= 0 || ring.radius >= ring.maxRadius) {
+                    explosionRings.splice(i, 1);
+                    continue;
+                }
+
+                ctx.strokeStyle = `rgba(249, 115, 22, ${ring.alpha})`;
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(ring.x, ring.y, ring.radius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Draw Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= 0.03;
+
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.alpha;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        // ====================================================================
+        // UI & CUSTOMIZATION MODAL CONTROLS
+        // ====================================================================
+        function updateShotsUI() {
+            const container = document.getElementById('shots-container');
+            container.innerHTML = '';
+
+            for (let i = currentBirdIndex + 1; i < levelBirdQueue.length; i++) {
+                const birdTypeId = levelBirdQueue[i];
+                const birdDef = BIRD_TYPES[birdTypeId];
+                container.innerHTML += `
+                    <div class="w-6 h-6 rounded-full border border-slate-500 overflow-hidden bg-slate-800 flex items-center justify-center">
+                        <img src="${birdDef.img.src}" class="w-full h-full object-cover">
+                    </div>
+                `;
+            }
+        }
+
+        function populateCustomizationModal() {
+            // Birds List
+            const birdContainer = document.getElementById('bird-custom-list');
+            birdContainer.innerHTML = '';
+
+            Object.values(BIRD_TYPES).forEach(birdDef => {
+                const row = document.createElement('div');
+                row.className = 'bg-slate-900/50 p-3 rounded-xl border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-3';
+
+                row.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <img id="preview-${birdDef.id}" src="${birdDef.img.src}" class="w-10 h-10 rounded-xl object-contain bg-slate-800 border border-slate-600 p-1">
+                        <div>
+                            <span class="text-xs font-bold text-white block">${birdDef.name}</span>
+                            <span class="text-[10px] text-slate-400">${birdDef.abilityText}</span>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2">
+                        <input type="file" id="file-${birdDef.id}" accept="image/*" class="hidden">
+                        <button onclick="document.getElementById('file-${birdDef.id}').click()" class="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition flex items-center">
+                            <i class="fa-solid fa-upload me-1.5"></i> Upload
+                        </button>
+                    </div>
+                `;
+
+                birdContainer.appendChild(row);
+
+                setTimeout(() => {
+                    const input = document.getElementById(`file-${birdDef.id}`);
+                    if (input) {
+                        input.addEventListener('change', (e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                    const img = new Image();
+                                    img.onload = () => {
+                                        birdDef.img = img;
+                                        document.getElementById(`preview-${birdDef.id}`).src = img.src;
+                                        updateShotsUI();
+                                        alertToast(`Updated ${birdDef.name}!`);
+                                    };
+                                    img.src = event.target.result;
+                                };
+                                reader.readAsDataURL(file);
+                            }
+                        });
+                    }
+                }, 0);
+            });
+
+            // Pigs List
+            const pigContainer = document.getElementById('pig-custom-list');
+            pigContainer.innerHTML = '';
+
+            Object.values(PIG_TYPES).forEach(pigDef => {
+                const row = document.createElement('div');
+                row.className = 'bg-slate-900/50 p-3 rounded-xl border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-3';
+
+                row.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <img id="preview-pig-${pigDef.id}" src="${pigDef.img.src}" class="w-10 h-10 rounded-xl object-contain bg-slate-800 border border-slate-600 p-1">
+                        <div>
+                            <span class="text-xs font-bold text-white block">${pigDef.name}</span>
+                            <span class="text-[10px] text-slate-400">Health: ${pigDef.health} HP</span>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2">
+                        <input type="file" id="file-pig-${pigDef.id}" accept="image/*" class="hidden">
+                        <button onclick="document.getElementById('file-pig-${pigDef.id}').click()" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition flex items-center">
+                            <i class="fa-solid fa-upload me-1.5"></i> Upload
+                        </button>
+                    </div>
+                `;
+
+                pigContainer.appendChild(row);
+
+                setTimeout(() => {
+                    const input = document.getElementById(`file-pig-${pigDef.id}`);
+                    if (input) {
+                        input.addEventListener('change', (e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                    const img = new Image();
+                                    img.onload = () => {
+                                        pigDef.img = img;
+                                        document.getElementById(`preview-pig-${pigDef.id}`).src = img.src;
+                                        alertToast(`Updated ${pigDef.name}!`);
+                                    };
+                                    img.src = event.target.result;
+                                };
+                                reader.readAsDataURL(file);
+                            }
+                        });
+                    }
+                }, 0);
+            });
+
+            document.getElementById('sun-preview').src = celestialImages.sun.src;
+            document.getElementById('moon-preview').src = celestialImages.moon.src;
+        }
+
+        // CELESTIAL UPLOAD LISTENERS
+        document.getElementById('sun-file-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        celestialImages.sun = img;
+                        document.getElementById('sun-preview').src = img.src;
+                        alertToast('Updated Sun Image!');
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
         });
-    </script>
 
+        document.getElementById('moon-file-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        celestialImages.moon = img;
+                        document.getElementById('moon-preview').src = img.src;
+                        alertToast('Updated Moon Image!');
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function alertToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-16 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-xs px-4 py-2 rounded-full shadow-lg z-50 animate-bounce';
+            toast.innerText = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 1800);
+        }
+
+        document.getElementById('level-select').onchange = (e) => {
+            currentLevel = parseInt(e.target.value);
+            loadLevel(currentLevel);
+        };
+
+        document.getElementById('btn-reset').onclick = () => loadLevel(currentLevel);
+        document.getElementById('modal-btn-retry').onclick = () => loadLevel(currentLevel);
+
+        document.getElementById('btn-sound').onclick = () => {
+            sound.muted = !sound.muted;
+            document.getElementById('sound-icon').className = sound.muted ? 'fa-solid fa-volume-xmark' : 'fa-solid fa-volume-high';
+        };
+
+        const customModal = document.getElementById('custom-modal');
+        document.getElementById('btn-customize').onclick = () => {
+            populateCustomizationModal();
+            customModal.classList.remove('hidden');
+        };
+        document.getElementById('custom-close').onclick = () => customModal.classList.add('hidden');
+        document.getElementById('custom-apply').onclick = () => customModal.classList.add('hidden');
+
+        window.addEventListener('resize', resizeCanvas);
+
+        window.onload = () => {
+            resizeCanvas();
+            initEngine();
+            populateCustomizationModal();
+            loadLevel(currentLevel);
+            render();
+        };
+    </script>
 </body>
 </html>
